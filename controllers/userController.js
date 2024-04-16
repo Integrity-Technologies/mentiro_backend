@@ -11,7 +11,9 @@ const saltRounds = 10;
 const signup = async (req, res) => {
   const { first_name, last_name, email, is_email_verified, phone, is_phone_verified, password, permissions, is_active, is_employee } =
     req.body;
-
+    
+    await createUserTable();
+    
 // Check if a user with the same email already exists
  const existingUser = await client.query('SELECT * FROM "user" WHERE email = $1', [email]);
  if (existingUser.rows.length > 0) {
@@ -21,7 +23,6 @@ const signup = async (req, res) => {
  const hashedPassword = await bcrypt.hash(password, saltRounds);
 
   try {
-    await createUserTable();
     // Save the user data
     const result = await saveUser({
       first_name,

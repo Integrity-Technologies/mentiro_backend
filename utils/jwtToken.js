@@ -2,14 +2,20 @@
 
 const jwt = require('jsonwebtoken');
 
-const generateToken = (result) => {
-  return jwt.sign({email:result.email}, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE,
-  });
-};
+// const generateToken = async(result) => {
+// //   if (!process.env.JWT_SECRET) {
+// //     throw new Error('JWT_SECRET environment variable is not set');
+// // }
+//   return  jwt.sign({email:result.email}, process.env.JWT_SECRET, {
+//     expiresIn: process.env.JWT_EXPIRE,
+//   });
+// };
 
 const sendToken = (result, statusCode, res) => {
-  const token = generateToken(result);
+  // const token = await generateToken(result);
+  const token = jwt.sign({email:result.email}, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE,
+  });
 
   // Options for cookie
   const options = {
@@ -26,4 +32,5 @@ const sendToken = (result, statusCode, res) => {
   });
 };
 
-module.exports = { generateToken, sendToken };
+// generateToken,
+module.exports = {  sendToken };

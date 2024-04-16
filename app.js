@@ -2,12 +2,12 @@ const express = require("express");
 const userRoutes = require("./routes/userRoutes");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const path = require('path');
 
 const app = express();
 const port = 5000;
 
-dotenv.config({path:"MENTIRO_BACKEND/config/config.env"});
-
+dotenv.config({path:"./config/config.env"});
 // Handling Uncaught Exception
 // process.on("uncaughtException",(err)=>{
 //   console.log(`Error: ${err.message}`);

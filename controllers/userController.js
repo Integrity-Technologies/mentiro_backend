@@ -58,7 +58,7 @@ const login = async (req, res) => {
     const existingUser = await client.query('SELECT * FROM "user" WHERE email = $1', [email]);
 
     if (existingUser.rows.length === 0) {
-      return res.status(400).json({ error: "Invalid email or password" });
+      return res.status(400).json({ error: "User with this email id doesn't exists" });
     }
 
     const user = existingUser.rows[0]; // Get the user data
@@ -67,7 +67,7 @@ const login = async (req, res) => {
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
-      return res.status(400).json({ error: "Invalid email or password" });
+      return res.status(400).json({ error: "Invalid password" });
     }
 
     // Login successful, generate and send token

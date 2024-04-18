@@ -76,6 +76,19 @@ const login = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
+// // Logout User
+const logout = catchAsyncErrors(async (req, res, next) => {
+  res.cookie("token", null, {
+    expires: new Date(Date.now()),
+    httpOnly: true,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Logged Out",
+  });
+});
+
 // get all users (Admin)
 const getAllUsers = catchAsyncErrors(async (req, res, next) => {
   try {
@@ -110,7 +123,7 @@ const forgotPassword = catchAsyncErrors(async (req, res, next) => {
 
     // Update user with reset token and expiry
     await client.query('UPDATE "user" SET reset_token = $1, reset_token_expiry = $2 WHERE email = $3',
-      [resetPasswordToken, resetTokenExpiry, email]);
+      [resetToken, resetTokenExpiry, email]);
 
     //     // Create the email content
     const resetUrl = `http://localhost:5000/api/users/password/reset?token=${resetToken}`; // Replace with your reset password URL
@@ -167,4 +180,4 @@ const resetPassword = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
-module.exports = { signup, login, getAllUsers, forgotPassword, resetPassword };
+module.exports = { signup, login, getAllUsers, forgotPassword, resetPassword, logout };

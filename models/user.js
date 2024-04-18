@@ -4,21 +4,23 @@ const { client } = require("../db/index.js");
 
 const createUsersTableQuery = `
     CREATE TABLE IF NOT EXISTS "user" (
-      id SERIAL PRIMARY KEY,
-      first_name VARCHAR,
-      last_name VARCHAR,
-      email VARCHAR UNIQUE,
-      is_email_verified BOOLEAN DEFAULT FALSE,
-      phone VARCHAR,
-      is_phone_verified BOOLEAN DEFAULT FALSE,
-      password VARCHAR,
-      permissions BOOLEAN DEFAULT FALSE,
-      is_active BOOLEAN DEFAULT TRUE,
-      is_employee BOOLEAN DEFAULT FALSE,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        id SERIAL PRIMARY KEY,
+        first_name VARCHAR,
+        last_name VARCHAR,
+        email VARCHAR UNIQUE,
+        is_email_verified BOOLEAN DEFAULT FALSE,
+        phone VARCHAR,
+        is_phone_verified BOOLEAN DEFAULT FALSE,
+        password VARCHAR,
+        permissions BOOLEAN DEFAULT FALSE,
+        is_active BOOLEAN DEFAULT TRUE,
+        is_employee BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        reset_token VARCHAR,
+        reset_token_expiry TIMESTAMP 
     )
-  `;
+    `;
 
 const createUserTable = async () => {
   try {
@@ -74,9 +76,11 @@ const saveUser = async (userData) => {
         password,
         permissions,
         is_active,
-        is_employee
+        is_employee,
+        reset_token,
+        reset_token_expiry
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *;
     `;
     //  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -91,6 +95,8 @@ const saveUser = async (userData) => {
       permissions ?? false,
       is_active ?? true,
       is_employee ?? false,
+      userData.reset_token || null, // Set to null if not provided
+      userData.reset_token_expiry || null, // Set to null if not provided
     ];
     console.log("🚀 ~ saveUser ~ values:", values);
     const result = await client.query(insertQuery, values);

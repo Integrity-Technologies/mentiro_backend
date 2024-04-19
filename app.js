@@ -1,7 +1,9 @@
 const express = require("express");
 const userRoutes = require("./routes/userRoutes");
+const companyRoutes = require("./routes/companyRouter");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const cookieParser = require('cookie-parser');
 const path = require('path');
 
 const app = express();
@@ -11,26 +13,28 @@ dotenv.config({path:"./config/config.env"});
 
 
 // Handling Uncaught Exception
-process.on("uncaughtException",(err)=>{
-  console.log(`Error: ${err.message}`);
-  console.log(`Shutting down the server due to Uncaught Exception`);
-  process.exit(1);
-})
+// process.on("uncaughtException",(err)=>{
+//   console.log(`Error: ${err.message}`);
+//   console.log(`Shutting down the server due to Uncaught Exception`);
+//   process.exit(1);
+// })
 
 
 app.use(cors()); // Use cors middleware
 app.use(express.json()); // Parse JSON bodies
+app.use(cookieParser()); // Use cookie-parser middleware to parse cookies
 app.use("/api/users", userRoutes);
+app.use("/api/company", companyRoutes);
 
 const server = app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
 
 // unhandled Promise Rejection
-process.on("unhandledRejection",err=>{
-  console.log(`Error: ${err.message}`);
-  console.log(`Shutting down the server due to unhandled Promise Rejection`);
-server.close(()=>{
-  process.exit(1);
-})
-})
+// process.on("unhandledRejection",err=>{
+//   console.log(`Error: ${err.message}`);
+//   console.log(`Shutting down the server due to unhandled Promise Rejection`);
+// server.close(()=>{
+//   process.exit(1);
+// })
+// })

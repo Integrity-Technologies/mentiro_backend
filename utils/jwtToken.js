@@ -13,7 +13,7 @@ const jwt = require('jsonwebtoken');
 
 const sendToken = (result, statusCode, res) => {
   // const token = await generateToken(result);
-  const token = jwt.sign({email:result.email}, process.env.JWT_SECRET, {
+  const token = jwt.sign({id:result.id}, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE,
   });
 

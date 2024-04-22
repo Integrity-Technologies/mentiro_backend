@@ -1,8 +1,6 @@
 const { createCompanyTable, saveCompany } = require("../models/company");
 const { client } = require("../db/index.js");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
-const {verifyTokenAndExtractUserId} = require("../middleware/verifyToken.js");
-// const 
 
 // Get all company
 const getAllCompany = catchAsyncErrors(async (req, res, next) => {

@@ -180,4 +180,30 @@ const resetPassword = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
-module.exports = { signup, login, getAllUsers, forgotPassword, resetPassword, logout };
+const getUserDetails = catchAsyncErrors(async (req, res, next) => {
+  const userId = req.user.id;
+
+  try {
+    const existingUser = await client.query('SELECT * FROM "user" WHERE id = $1', [userId]);
+
+    if (existingUser.rows.length === 0) {
+      return res.status(400).json({ error: "User not found" });
+    }
+
+    const user = existingUser.rows[0]; // Get the user data
+
+    res.status(200).json({
+      success: true,
+      user,
+    });
+
+  } catch (error) {
+    console.error('Error fetching user details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal Server Error',
+    });
+  }
+});
+
+module.exports = { signup, login, getAllUsers, forgotPassword, resetPassword, logout, getUserDetails };

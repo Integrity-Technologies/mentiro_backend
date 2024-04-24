@@ -4,6 +4,7 @@ const companyRoutes = require("./routes/companyRouter");
 const testRoutes = require("./routes/testRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const questionRoutes = require("./routes/questionRoutes");
+const assessmentRoutes = require("./routes/assessmentRoutes");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const cookieParser = require('cookie-parser');
@@ -31,6 +32,7 @@ app.use("/api/company", companyRoutes);
 app.use("/api/test", testRoutes);
 app.use("/api/category", categoryRoutes);
 app.use("/api/question", questionRoutes);
+app.use("/api/Assessments",assessmentRoutes);
 
 const server = app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);

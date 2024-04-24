@@ -44,6 +44,7 @@ const findCompanyIdByName = async (companyName) => {
         } else {
           // Handle the case if a category with the provided name does not exist
           throw new Error(`Category '${categoryName}' not found`);
+          // return res.status(400).json({ error: `Category `${categoryName}` not found`});
         }
       }
   
@@ -68,6 +69,12 @@ const findCompanyIdByName = async (companyName) => {
         return res.status(400).json({ error: "Missing required fields" });
       }
   
+       // Check if a test with the same name already exists
+       const existingTest = await client.query('SELECT * FROM tests WHERE test_name = $1', [test_name]);
+       if (existingTest.rows.length > 0) {
+           return res.status(400).json({ error: "Test with this name already exists" });
+       }
+
       // Find company ID by name
       const companyId = await findCompanyIdByName(company_name);
   

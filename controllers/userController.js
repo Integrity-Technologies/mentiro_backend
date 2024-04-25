@@ -264,15 +264,22 @@ const deleteUser = catchAsyncErrors(async (req, res, next) => {
       return res.status(400).json({ error: "User not found" });
     }
 
-    // Delete user
+    // **Cascading Delete with `ON DELETE CASCADE`**
+    await client.query('BEGIN'); // Start transaction
+    await client.query(
+      'DELETE FROM "companies" WHERE created_by = $1',
+      [userId]
+    );
+    // Add similar DELETE statements for other dependent tables
     await client.query('DELETE FROM "user" WHERE id = $1', [userId]);
+    await client.query('COMMIT'); // Commit transaction if successful
 
-    res
-      .status(200)
-      .json({ success: true, message: "User deleted successfully" });
+    res.status(200).json({ success: true, message: "User deleted successfully" });
   } catch (error) {
     console.error("Error deleting user:", error);
+    await client.query('ROLLBACK'); // Rollback transaction on error
     res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 });
+
 module.exports = { signup, login, getAllUsers, forgotPassword, resetPassword, logout, getUserDetails, editUser, deleteUser };

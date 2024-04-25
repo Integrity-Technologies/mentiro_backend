@@ -206,4 +206,73 @@ const getUserDetails = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
-module.exports = { signup, login, getAllUsers, forgotPassword, resetPassword, logout, getUserDetails };
+
+// Edit user details (Admin)
+const editUser = catchAsyncErrors(async (req, res, next) => {
+  const userId = req.params.id;
+  const { first_name, last_name, email, password, phone } = req.body;
+
+  try {
+    const existingUser = await client.query(
+      'SELECT * FROM "user" WHERE id = $1',
+      [userId]
+    );
+
+    if (existingUser.rows.length === 0) {
+      return res.status(400).json({ error: "User not found" });
+    }
+
+    // Check if the updated email already exists
+    // Check if the updated email already exists
+    const emailCheck = await client.query(
+      'SELECT * FROM "user" WHERE email = $1 and id= $2',
+      [email, userId]
+    );
+    console.log("Email check result:", emailCheck.rows);
+    if (emailCheck.rows.length > 0) {
+      return res.status(400).json({ error: "Email already exists" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Update user details
+    await client.query(
+      'UPDATE "user" SET first_name = $2, last_name = $3, email = $4, phone = $5, password = $6 WHERE id = $1',
+      [userId, first_name, last_name, email, phone, hashedPassword] // Corrected password position
+    );
+
+    res
+      .status(200)
+      .json({ success: true, message: "User details updated successfully" });
+  } catch (error) {
+    console.error("Error editing user details:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+});
+
+// Delete user (Admin)
+const deleteUser = catchAsyncErrors(async (req, res, next) => {
+  const userId = req.params.id;
+
+  try {
+    const existingUser = await client.query(
+      'SELECT * FROM "user" WHERE id = $1',
+      [userId]
+    );
+
+    if (existingUser.rows.length === 0) {
+      return res.status(400).json({ error: "User not found" });
+    }
+
+    // Delete user
+    await client.query('DELETE FROM "user" WHERE id = $1', [userId]);
+
+    res
+      .status(200)
+      .json({ success: true, message: "User deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+});
+module.exports = { signup, login, getAllUsers, forgotPassword, resetPassword, logout, getUserDetails, editUser, deleteUser };

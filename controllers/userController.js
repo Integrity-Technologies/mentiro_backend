@@ -270,6 +270,7 @@ const deleteUser = catchAsyncErrors(async (req, res, next) => {
       'DELETE FROM "companies" WHERE created_by = $1',
       [userId]
     );
+    await client.query('DELETE FROM assessments WHERE created_by = $1', [userId]);
     // Add similar DELETE statements for other dependent tables
     await client.query('DELETE FROM "user" WHERE id = $1', [userId]);
     await client.query('COMMIT'); // Commit transaction if successful

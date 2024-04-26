@@ -59,7 +59,7 @@ const saveUser = async (userData) => {
       [email]
     );
     if (existingUser.rows.length > 0) {
-      throw new Error("User with this email already exists");
+      return { error: 'User with this email already exists' };
     }
     // Convert company_id to an array if it's not already
     // const updated_company_id = Array.isArray(company_id)

@@ -77,7 +77,92 @@ const createCompany = catchAsyncErrors(async (req, res, next) => {
     }
 });
 
-module.exports = createCompany;
+// Update company
+const updateCompany = catchAsyncErrors(async (req, res, next) => {
+    try {
+      // Extract company ID from request parameters
+      const companyId = req.params.id;
+  
+      // Extract updated company data from the request body
+      const { name, website, isActive, stripeCustomerId, planId } = req.body;
+  
+      // Validate request data
+      if (!name) {
+        return res.status(400).json({ error: "Company name is required" });
+      }
+  
+      // Check if the company exists
+      const existingCompany = await client.query('SELECT * FROM companies WHERE id = $1', [companyId]);
+      if (existingCompany.rows.length === 0) {
+        return res.status(404).json({ error: "Company not found" });
+      }
 
+      // Check if the updated company name already exists
+      const duplicateCompany = await client.query('SELECT * FROM companies WHERE name = $1 AND id != $2', [name, companyId]);
+      if (duplicateCompany.rows.length > 0) {
+        return res.status(400).json({ error: "Another company with this name already exists" });
+      }
+  
+      // Update the company object with the extracted data
+      const updatedCompanyData = {
+        name,
+        website: website || existingCompany.rows[0].website, // Use existing website if not provided in the request body
+        isActive: isActive || existingCompany.rows[0].isActive, // Use existing isActive value if not provided in the request body
+        stripeCustomerId: stripeCustomerId || existingCompany.rows[0].stripeCustomerId, // Use existing stripeCustomerId if not provided in the request body
+        planId: planId || existingCompany.rows[0].planId // Use existing planId if not provided in the request body
+      };
+  
+      // Update the company data in the database
+      await client.query(
+        'UPDATE companies SET name = $1, website = $2, is_active = $3, stripe_customer_id = $4, plan_id = $5 WHERE id = $6',
+        [updatedCompanyData.name, updatedCompanyData.website, updatedCompanyData.isActive, updatedCompanyData.stripeCustomerId, updatedCompanyData.planId, companyId]
+      );
+  
+      // Send a success response
+      res.status(200).json({ success: true, message: "Company updated successfully" });
+    } catch (error) {
+      console.error("Error updating company:", error.message);
+      res.status(500).json({ error: "Error updating company" });
+    }
+  });
 
-module.exports = { getAllCompany, createCompany, getAllCompaniesOfUser };
+  
+ // Delete company
+const deleteCompany = catchAsyncErrors(async (req, res, next) => {
+    try {
+      // Extract company ID from request parameters
+      const companyId = req.params.id;
+  
+      // Check if the company exists
+      const existingCompany = await client.query('SELECT * FROM companies WHERE id = $1', [companyId]);
+      if (existingCompany.rows.length === 0) {
+        return res.status(404).json({ error: "Company not found" });
+      }
+  
+      // Begin a transaction
+      await client.query('BEGIN');
+  
+      // Delete assessments associated with the company
+      await client.query('DELETE FROM assessments WHERE company_id = $1', [companyId]);
+  
+      // Delete tests associated with the company
+      await client.query('DELETE FROM tests WHERE company_id = $1', [companyId]);
+  
+      // Delete the company data from the database
+      await client.query('DELETE FROM companies WHERE id = $1', [companyId]);
+  
+      // Commit the transaction
+      await client.query('COMMIT');
+  
+      // Send a success response
+      res.status(200).json({ success: true, message: "Company deleted successfully" });
+    } catch (error) {
+      // Rollback the transaction on error
+      await client.query('ROLLBACK');
+      console.error("Error deleting company:", error.message);
+      res.status(500).json({ error: "Error deleting company" });
+    }
+  });
+  
+
+module.exports = { getAllCompany, createCompany, getAllCompaniesOfUser, updateCompany, deleteCompany };

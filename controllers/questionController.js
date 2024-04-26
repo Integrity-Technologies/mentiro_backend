@@ -92,42 +92,50 @@ const getAllQuestion = async (req, res) => {
   };
 
 // Delete question
-  const deleteQuestion = async (req, res) => {
-    const { id } = req.params; // Access ID from req.params
-  
-    try {
-      // Use the ID to delete the question
-      const deleteQuery = `
-        DELETE FROM question 
-        WHERE id = $1 
-        RETURNING *;
-      `;
-      const values = [id];
-  
-      const result = await client.query(deleteQuery, values);
-  
-      if (result.rows.length === 0) {
-        return res.status(404).json({ error: "Question not found" });
-      }
-  
-      const deletedQuestion = result.rows[0];
-      res.status(200).json({ message: "Question deleted successfully", deletedQuestion });
-    } catch (error) {
-      console.error("Error deleting question:", error);
-      res.status(500).json({ error: "Could not delete question" });
-    }
-  };
+const deleteQuestion = async (req, res) => {
+  const { id } = req.params; // Access ID from req.params
 
-
-
-  const getQuestionById = async (id) => {
-    const query = `
-      SELECT * FROM question
+  try {
+    // Check if the question exists
+    const checkQuery = `
+      SELECT * FROM question 
       WHERE id = $1;
     `;
-    const result = await client.query(query, [id]);
-    return result.rows[0];
-  };
+    const checkValues = [id];
+    const checkResult = await client.query(checkQuery, checkValues);
+
+    // If the question does not exist, return 404
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: "Question not found" });
+    }
+
+    // Use the ID to delete the question
+    const deleteQuery = `
+      DELETE FROM question 
+      WHERE id = $1 
+      RETURNING *;
+    `;
+    const values = [id];
+
+    // **Cascading Delete with `ON DELETE CASCADE`**
+    await client.query('BEGIN'); // Start transaction
+    // Delete answers related to the question
+    await client.query(
+      'DELETE FROM answers WHERE question_id = $1',
+      [id]
+    );
+    // Delete the question itself
+    const result = await client.query(deleteQuery, values);
+    await client.query('COMMIT'); // Commit transaction if successful
+
+    const deletedQuestion = result.rows[0];
+    res.status(200).json({ message: "Question deleted successfully", deletedQuestion });
+  } catch (error) {
+    console.error("Error deleting question:", error);
+    await client.query('ROLLBACK'); // Rollback transaction on error
+    res.status(500).json({ error: "Could not delete question" });
+  }
+};
 
   // Update Question
   const updateQuestion = async (req, res) => {
@@ -180,5 +188,28 @@ const getAllQuestion = async (req, res) => {
     }
   };
   
+  // Get question by ID
+const getQuestionById = async (req, res) => {
+  const { id } = req.params;
 
-module.exports = { createQuestionAndAnswer, getAllQuestion, deleteQuestion, updateQuestion };
+  try {
+    const query = `
+      SELECT * FROM question
+      WHERE id = $1;
+    `;
+    const result = await client.query(query, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Question not found" });
+    }
+
+    const question = result.rows[0];
+    res.status(200).json(question);
+  } catch (error) {
+    console.error("Error fetching question by ID:", error);
+    res.status(500).json({ error: "Could not fetch question by ID" });
+  }
+};
+
+
+module.exports = { createQuestionAndAnswer, getAllQuestion, deleteQuestion, updateQuestion, getQuestionById };

@@ -126,7 +126,7 @@ const forgotPassword = catchAsyncErrors(async (req, res, next) => {
       [resetToken, resetTokenExpiry, email]);
 
     //     // Create the email content
-    const resetUrl = `http://localhost:5000/api/users/password/reset?token=${resetToken}`; // Replace with your reset password URL
+    const resetUrl = `http://localhost:3000/api/users/password/reset?token=${resetToken}`; // Replace with your reset password URL
     const message = `Your password reset token :- \n\n ${resetUrl} \n\nIf you have not requested this email then, please ignore it.`;
 
     await sendEmail({

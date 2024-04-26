@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS assessments (
     assessment_name VARCHAR(100),
     company_id INTEGER,
     tests INTEGER[],
-    link VARCHAR(255),
+    shareableLink VARCHAR(255),
+    uniquelink VARCHAR(255),
     created_by INTEGER,
     is_active BOOLEAN DEFAULT TRUE,
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -34,16 +35,17 @@ const saveAssessment = async (assessmentData) => {
     assessment_name,
     company_id,
     tests,
-    link,
+    shareableLink,
+    uniquelink,
     created_by,
   } = assessmentData;
   try {
 
    // Check if a link already exists
    const checkLinkQuery = `
-   SELECT * FROM assessments WHERE link = $1
+   SELECT * FROM assessments WHERE shareableLink = $1
  `;
- const checkLinkResult = await client.query(checkLinkQuery, [link]);
+ const checkLinkResult = await client.query(checkLinkQuery, [shareableLink]);
  if (checkLinkResult.rows.length > 0) {
    return { error: 'Assessment link already exists. Please generate a unique link.' };
  }
@@ -62,17 +64,19 @@ const saveAssessment = async (assessmentData) => {
         assessment_name,
         company_id,
         tests,
-        link,
+        shareableLink,
+        uniquelink,
         created_by
       )
-      VALUES ($1, $2, $3, $4, $5)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *;
     `;
     const values = [
       assessment_name,
       company_id,
       tests,
-      link,
+      shareableLink,
+      uniquelink,
       created_by,
     ];
     const result = await client.query(insertQuery, values);

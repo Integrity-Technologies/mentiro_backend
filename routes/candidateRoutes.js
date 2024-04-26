@@ -4,6 +4,7 @@ const {
   createCandidate,
   editCandidateById,
   deleteCandidateById,
+  getCandidateById
 } = require("../controllers/candidateController.js");
 const { verifyTokenAndExtractUserId } = require("../middleware/verifyToken.js");
 const router = express.Router();
@@ -19,5 +20,7 @@ router.put("/edit/:id", editCandidateById); // tested in postman successfully
 
 // Delete a candidate
 router.delete("/delete/:id", deleteCandidateById); // tested in postman successfully
+
+router.get("/:id",getCandidateById);
 
 module.exports = router;

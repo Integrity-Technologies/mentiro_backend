@@ -76,6 +76,26 @@ const editCandidateById = catchAsyncErrors(async (req, res) => {
     }
   });
   
+// Get candidate by ID
+const getCandidateById = catchAsyncErrors(async (req, res) => {
+    const candidateId = req.params.id;
+    try {
+      // Query the database for the candidate with the specified ID
+      const result = await client.query('SELECT * FROM candidate WHERE id = $1', [candidateId]);
+      
+      // Check if a candidate was found
+      if (result.rows.length === 0) {
+        return res.status(404).json({ message: "Candidate not found" });
+      }
+  
+      // Return the candidate data
+      res.status(200).json(result.rows[0]);
+    } catch (error) {
+      // Handle errors
+      res.status(500).json({ message: "Error getting candidate", error: error.message });
+    }
+  });
+
 // delete candidate
 const deleteCandidateById = catchAsyncErrors(async (req, res) => {
     const candidateId = req.params.id;
@@ -118,5 +138,6 @@ module.exports = {
   getAllCandidate,
   createCandidate,
   editCandidateById,
-  deleteCandidateById
+  deleteCandidateById,
+  getCandidateById
 };

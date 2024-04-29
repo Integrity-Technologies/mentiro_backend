@@ -66,5 +66,21 @@ if (checkResult.rows.length > 0) {
     throw error;
   }
 };
-
-module.exports = { createAnswersTable, saveAnswer };
+// Function to get answer by question ID
+const getAnswerByQuestionId = async (question_id) => {
+  try {
+    const query = `
+      SELECT * FROM answers
+      WHERE question_id = $1`;
+    const values = [question_id];
+    const result = await client.query(query, values);
+    if (result.rows.length === 0) {
+      throw new Error("Answer not found");
+    }
+    // Return the first matching answer or null if not found
+    return result.rows.length > 0 ? result.rows[0] : null;
+  } catch (error) {
+    throw error;
+  }
+};
+module.exports = { createAnswersTable, saveAnswer, getAnswerByQuestionId };

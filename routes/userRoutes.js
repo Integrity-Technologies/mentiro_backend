@@ -1,7 +1,7 @@
 // routes/userRoutes.js
 
 const express = require('express');
-const { signup,login,getAllUsers,forgotPassword,resetPassword, logout, getUserDetails, editUser, deleteUser } = require('../controllers/userController');
+const { signup,login,getAllUsers,forgotPassword,resetPassword, logout, getUserDetails, editUser, deleteUser, addUser } = require('../controllers/userController');
 const {isAuthenticatedUser} = require("../middleware/auth");
 
 const router = express.Router();
@@ -15,6 +15,7 @@ router.get("/logout", logout); // tested in postman successfully
 router.get("/me",isAuthenticatedUser, getUserDetails); // tested in postman successfully
 router.put("/update/:id",isAuthenticatedUser,editUser); // tested in postman successfully
 router.delete("/delete/:id",isAuthenticatedUser,deleteUser); // tested in postman successfully
+router.post("/add",addUser);
 
 module.exports = router;
 

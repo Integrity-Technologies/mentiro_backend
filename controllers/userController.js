@@ -47,6 +47,42 @@ const signup = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
+// Add user (similar to signup)
+const addUser = catchAsyncErrors(async (req, res, next) => {
+  const { first_name, last_name, email, is_email_verified, phone, is_phone_verified, password, permissions, is_active, is_employee } =
+    req.body;
+
+  await createUserTable();
+
+  // Check if a user with the same email already exists
+  const existingUser = await client.query('SELECT * FROM "user" WHERE email = $1', [email]);
+  if (existingUser.rows.length > 0) {
+    return res.status(400).json({ error: "User with this email already exists" });
+  }
+
+  const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+  try {
+    // Save the user data
+    const result = await saveUser({
+      first_name,
+      last_name,
+      email,
+      is_email_verified,
+      phone,
+      is_phone_verified,
+      password: hashedPassword,
+      permissions,
+      is_active,
+      is_employee,
+    });
+    sendToken(result, 201, res);
+  } catch (error) {
+    console.error("Error occurred:", error);
+    res.status(500).json({ error: "An internal server error occurred" });
+  }
+});
+
 // login
 const login = catchAsyncErrors(async (req, res, next) => {
   const { email, password } = req.body;
@@ -283,4 +319,4 @@ const deleteUser = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
-module.exports = { signup, login, getAllUsers, forgotPassword, resetPassword, logout, getUserDetails, editUser, deleteUser };
+module.exports = { signup, login, getAllUsers, forgotPassword, resetPassword, logout, getUserDetails, editUser, deleteUser, addUser };

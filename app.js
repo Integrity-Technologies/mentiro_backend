@@ -6,6 +6,8 @@ const categoryRoutes = require("./routes/categoryRoutes");
 const questionRoutes = require("./routes/questionRoutes");
 const assessmentRoutes = require("./routes/assessmentRoutes");
 const candidateRoutes = require("./routes/candidateRoutes");
+const resultRoutes = require("./routes/resultRoutes");
+const answerRoutes = require('./routes/answerRoutes');
 const cors = require("cors");
 const dotenv = require("dotenv");
 const cookieParser = require('cookie-parser');
@@ -35,6 +37,8 @@ app.use("/api/category", categoryRoutes);
 app.use("/api/question", questionRoutes);
 app.use("/api/Assessments",assessmentRoutes);
 app.use("/api/candidate", candidateRoutes);
+app.use('/api/answers', answerRoutes);
+app.use("/api/result", resultRoutes);
 
 const server = app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);

@@ -58,10 +58,16 @@ const createQuestionAndAnswer = async (req, res) => {
       questionId = newQuestion.id;
     }
 
+     // Format options array
+    const formattedOptions = options.map(option => ({
+      is_correct: option.is_correct,
+      option_text: option.option_text
+    }));
+
     // Prepare answer data
     const answerData = {
       question_id: questionId,
-      options, // Assuming options are provided in the request body
+      options: formattedOptions, // Assuming options are provided in the request body
       created_by: req.user.id, // Assuming user ID is extracted from authentication middleware
     };
 

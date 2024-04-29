@@ -10,7 +10,7 @@ const { verifyTokenAndExtractUserId } = require("../middleware/verifyToken.js");
 const router = express.Router();
 
 // Get all candidates
-router.get("/all", getAllCandidate); // tested in postman successfully
+router.get("/allCandidate", getAllCandidate); // tested in postman successfully
 
 // Create a new candidate
 router.post("/create", createCandidate); // tested in postman successfully

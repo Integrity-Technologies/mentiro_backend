@@ -134,16 +134,44 @@ const createResult = async (req, res) => {
 };
 
 // Get all Results
-const getAllResults = async (req, res, next) => {
+const getAllResults = async (req, res) => {
   try {
     await createResultsTable();
 
     const results = await client.query('SELECT * FROM "results"');
 
-    res.status(200).json(results.rows); // Return all Results data in the response
+    if (results.rows.length === 0) {
+      return res.status(404).json({ error: "Results not found" });
+    }
+
+    // Fetch candidate names for each result
+    const candidateIds = results.rows.map(result => result.candidate_id);
+    const candidateResult = await client.query('SELECT id, first_name FROM "candidate" WHERE id = ANY($1)', [candidateIds]);
+    const candidatesMap = new Map(candidateResult.rows.map(candidate => [candidate.id, candidate.first_name]));
+
+    // Fetch test names for each result
+    const testIds = results.rows.map(result => result.test_id);
+    const testResult = await client.query('SELECT id, test_name FROM "tests" WHERE id = ANY($1)', [testIds]);
+    const testsMap = new Map(testResult.rows.map(test => [test.id, test.test_name]));
+
+    // Fetch assessment names for each result
+    const assessmentIds = results.rows.map(result => result.assessment_id);
+    const assessmentResult = await client.query('SELECT id, assessment_name FROM "assessments" WHERE id = ANY($1)', [assessmentIds]);
+    const assessmentsMap = new Map(assessmentResult.rows.map(assessment => [assessment.id, assessment.assessment_name]));
+
+    // Replace candidate_id, test_id, and assessment_id with their respective names
+    const resultsWithNames = results.rows.map(result => ({
+      ...result,
+      candidate_name: candidatesMap.get(result.candidate_id), // Get candidate name from the map
+      test_name: testsMap.get(result.test_id),
+      assessment_name: assessmentsMap.get(result.assessment_id)
+    }));
+
+    res.status(200).json(resultsWithNames); // Return all Results data with names in the response
   } catch (error) {
     console.error("Error fetching results:", error.message);
     res.status(500).json({ error: "Error fetching results" });
   }
 };
+
 module.exports = { submitAnswer, createResult, getAllResults };

@@ -4,18 +4,65 @@ const { client } = require("../db/index.js");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 
 // Get all tests
+// const getAllTests = catchAsyncErrors(async (req, res, next) => {
+//   try {
+//     await createTestsTable();
+
+//     const tests = await client.query('SELECT * FROM "tests"');
+
+//     res.status(200).json(tests.rows); // Return all test data in the response
+//   } catch (error) {
+//     console.error("Error fetching tests:", error.message);
+//     res.status(500).json({ error: "Error fetching tests" });
+//   }
+// });
+
+// Get all tests
 const getAllTests = catchAsyncErrors(async (req, res, next) => {
   try {
     await createTestsTable();
 
-    const tests = await client.query('SELECT * FROM "tests"');
+    // Fetch all tests
+    const testsResult = await client.query('SELECT * FROM "tests"');
+    const tests = testsResult.rows;
 
-    res.status(200).json(tests.rows); // Return all test data in the response
+    // If no tests found, return an empty array
+    if (tests.length === 0) {
+      return res.status(400).json({ error: "Test not found" });;
+    }
+
+    // Fetch company names for each test
+    const companyIds = tests.map(test => test.company_id);
+    const companyResult = await client.query('SELECT id, name FROM "companies" WHERE id = ANY($1)', [companyIds]);
+    const companiesMap = new Map(companyResult.rows.map(company => [company.id, company.name]));
+
+    // Fetch category names for each test
+    const categoriesMap = new Map(); // Initialize an empty map for category names
+    for (const test of tests) {
+      const categoryIds = test.categories.filter(Boolean); // Filter out null or undefined values
+      if (categoryIds.length > 0) {
+        const categoryResult = await client.query('SELECT id, category_name FROM "category" WHERE id = ANY($1)', [categoryIds]);
+        categoryResult.rows.forEach(category => {
+          categoriesMap.set(category.id, category.category_name);
+        });
+      }
+    }
+
+    // Replace company_id with company name and categories with their respective names
+    const testsWithNames = tests.map(test => ({
+      ...test,
+      company: companiesMap.get(test.company_id),
+      categories: test.categories.filter(Boolean).map(categoryId => categoriesMap.get(categoryId))
+    }));
+
+    res.status(200).json(testsWithNames); // Return all test data with names in the response
   } catch (error) {
     console.error("Error fetching tests:", error.message);
     res.status(500).json({ error: "Error fetching tests" });
   }
 });
+
+
 
 // Function to find company ID by name
 const findCompanyIdByName = async (companyName) => {

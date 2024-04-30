@@ -132,4 +132,18 @@ const createResult = async (req, res) => {
     res.status(500).json({ error: "Error creating result" });
   }
 };
-module.exports = { submitAnswer, createResult };
+
+// Get all Results
+const getAllResults = async (req, res, next) => {
+  try {
+    await createResultsTable();
+
+    const results = await client.query('SELECT * FROM "results"');
+
+    res.status(200).json(results.rows); // Return all Results data in the response
+  } catch (error) {
+    console.error("Error fetching results:", error.message);
+    res.status(500).json({ error: "Error fetching results" });
+  }
+};
+module.exports = { submitAnswer, createResult, getAllResults };

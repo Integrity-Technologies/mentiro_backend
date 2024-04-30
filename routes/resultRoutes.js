@@ -23,12 +23,15 @@
 // routes/resultRouter.js
 const express = require('express');
 const router = express.Router();
-const {submitAnswer,createResult} = require('../controllers/resultController');
+const {submitAnswer,createResult, getAllResults} = require('../controllers/resultController');
 
 // Route to submit answer
 router.post('/submit', submitAnswer);
 
 // Route to create result
 router.post('/create', createResult);
+
+// Route to get all results
+router.get("/allResults",getAllResults);
 
 module.exports = router;

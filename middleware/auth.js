@@ -4,8 +4,11 @@ const jwt = require("jsonwebtoken");
 const { client } = require("../db/index.js");
 
 exports.isAuthenticatedUser = catchAsyncErrors(async (req, res, next) => {
-  const { token } = req.cookies;
+  // const { token } = req.cookies;
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
 
+console.log(token, " from isAuthenticatedUser function in middleware");
   if (!token) {
     return next(new ErrorHandler("Please Login to access this resource", 401));
   }

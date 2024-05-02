@@ -2,10 +2,7 @@
 
 const { createCandidateTable, saveCandidate } = require("../models/candidate");
 const { client } = require("../db/index.js");
-const bcrypt = require('bcrypt');
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
-
-const saltRounds = 10;
 
 const getAllCandidate = catchAsyncErrors(async (req, res) => {
   try {
@@ -39,7 +36,7 @@ const editCandidateById = catchAsyncErrors(async (req, res) => {
       }
       
       // Validate request data
-    if (!updatedData.email || !updatedData.password || !updatedData.first_name || !updatedData.last_name || !updatedData.phone) {
+    if (!updatedData.email || !updatedData.first_name || !updatedData.last_name) {
         return res.status(400).json({ error: "Missing required fields" });
       }
   
@@ -53,16 +50,10 @@ const editCandidateById = catchAsyncErrors(async (req, res) => {
         return res.status(400).json({ error: "Email already exists" });
       }
   
-      // Hash the password if provided
-      if (updatedData.password) {
-        const hashedPassword = await bcrypt.hash(updatedData.password, saltRounds);
-        updatedData.password = hashedPassword;
-      }
-  
       // Perform the update query
       const result = await client.query(
-        'UPDATE candidate SET first_name = $1, last_name = $2, email = $3, phone = $4, password = $5 WHERE id = $6 RETURNING *',
-        [updatedData.first_name, updatedData.last_name, updatedData.email, updatedData.phone, updatedData.password, candidateId]
+        'UPDATE candidate SET first_name = $1, last_name = $2, email = $3 WHERE id = $4 RETURNING *',
+        [updatedData.first_name, updatedData.last_name, updatedData.email, candidateId]
       );
       
       // Check if any rows were affected

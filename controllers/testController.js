@@ -4,20 +4,6 @@ const { client } = require("../db/index.js");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 
 // Get all tests
-// const getAllTests = catchAsyncErrors(async (req, res, next) => {
-//   try {
-//     await createTestsTable();
-
-//     const tests = await client.query('SELECT * FROM "tests"');
-
-//     res.status(200).json(tests.rows); // Return all test data in the response
-//   } catch (error) {
-//     console.error("Error fetching tests:", error.message);
-//     res.status(500).json({ error: "Error fetching tests" });
-//   }
-// });
-
-// Get all tests
 const getAllTests = catchAsyncErrors(async (req, res, next) => {
   try {
     await createTestsTable();

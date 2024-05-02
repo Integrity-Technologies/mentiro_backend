@@ -7,11 +7,23 @@ const getAllCompany = catchAsyncErrors(async (req, res, next) => {
   try {
     await createCompanyTable();
 
-    const company = await client.query('SELECT * FROM "companies"');
+    const companyResult = await client.query(`
+      SELECT companies.*, "user".id as created_by, "user".first_name as created_by_user
+      FROM companies
+      LEFT JOIN "user" ON companies.created_by = "user".id
+    `);
 
-    res.status(200).json(company.rows); // Return all company data in the response
+    // If no companies found, return an empty array
+    if (companyResult.rows.length === 0) {
+      return res.status(400).json({ error: "No companies found" });
+    }
+
+    res.status(200).json(companyResult.rows); // Return all company data in the response
   } catch (error) {
     console.error("Error fetching companies:", error.message);
+    if (error.code === '42P01') {
+      return res.status(500).json({ error: "Table does not exist. Please create the table first." });
+    }
     res.status(500).json({ error: "Error fetching companies" });
   }
 });

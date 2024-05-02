@@ -1,10 +1,6 @@
 // models/candidate.js
 
 const { client } = require("../db/index.js");
-const bcrypt = require('bcrypt');
-
-// Number of salt rounds for password hashing
-const saltRounds = 10;
 
 const createCandidatesTableQuery = `
     CREATE TABLE IF NOT EXISTS candidate (
@@ -12,10 +8,6 @@ const createCandidatesTableQuery = `
         first_name VARCHAR,
         last_name VARCHAR,
         email VARCHAR UNIQUE,
-        is_email_verified BOOLEAN DEFAULT FALSE,
-        phone VARCHAR,
-        is_phone_verified BOOLEAN DEFAULT FALSE,
-        password VARCHAR,
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -37,10 +29,6 @@ const saveCandidate = async (candidateData) => {
     first_name,
     last_name,
     email,
-    is_email_verified,
-    phone,
-    is_phone_verified,
-    password,
     is_active,
   } = candidateData;
   try {
@@ -62,21 +50,14 @@ const saveCandidate = async (candidateData) => {
         return { error: 'user with this email already exists' };
       }
 
-    // Hash the candidate's password
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
     const insertQuery = `
       INSERT INTO candidate (
         first_name,
         last_name,
         email,
-        is_email_verified,
-        phone,
-        is_phone_verified,
-        password,
         is_active
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      VALUES ($1, $2, $3, $4)
       RETURNING *;
     `;
 
@@ -84,10 +65,6 @@ const saveCandidate = async (candidateData) => {
       first_name,
       last_name,
       email,
-      is_email_verified ?? false,
-      phone,
-      is_phone_verified ?? false,
-      hashedPassword, // Save hashed password instead of plain password
       is_active ?? true,
     ];
 

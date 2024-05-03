@@ -31,6 +31,7 @@ const getAllCompany = catchAsyncErrors(async (req, res, next) => {
 // Get all companies of a specific user
 const getAllCompaniesOfUser = catchAsyncErrors(async (req, res, next) => {
     try {
+      await createCompanyTable();
         // Extract user ID from req object (provided by verifyTokenAndExtractUserId middleware)
         const userId = req.user.id;
 

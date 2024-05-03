@@ -150,20 +150,29 @@ const deleteQuestion = async (req, res) => {
   
     try {
       // Fetch the existing question data from the database
-      const existingQuestion = await getQuestionById(id);
+      // const existingQuestion = await getQuestionById(id);
+      const query = `
+      SELECT * FROM question
+      WHERE id = $1;
+    `;
+    const questionID = await client.query(query, [id]);
+
+    if (questionID.rows.length === 0) {
+      return res.status(404).json({ error: "Question not found" });
+    }
   
-      if (!existingQuestion) {
-        return res.status(404).json({ error: "Question not found" });
-      }
+      // if (!existingQuestion) {
+      //   return res.status(404).json({ error: "Question not found" });
+      // }
   
       // Find category IDs for the updated category names
       const updatedCategoryIds = await findCategoryIdsByName(category_names);
   
       // Compare the updated fields with existing data
       if (
-        question_text === existingQuestion.question_text &&
-        difficulty_level === existingQuestion.difficulty_level &&
-        JSON.stringify(updatedCategoryIds.sort()) === JSON.stringify(existingQuestion.categories.sort())
+        question_text === questionID.question_text &&
+        difficulty_level === questionID.difficulty_level &&
+        JSON.stringify(updatedCategoryIds.sort()) === JSON.stringify(questionID.categories.sort())
       ) {
         return res.status(400).json({ error: "No changes to update" });
       }
@@ -218,4 +227,4 @@ const getQuestionById = async (req, res) => {
 };
 
 
-module.exports = { createQuestionAndAnswer, getAllQuestion, deleteQuestion, updateQuestion, getQuestionById };
+module.exports = { createQuestionAndAnswer, getAllQuestion, deleteQuestion, updateQuestion,getQuestionById };

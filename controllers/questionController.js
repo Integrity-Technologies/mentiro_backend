@@ -195,8 +195,8 @@ const deleteQuestion = async (req, res) => {
   };
   
   // Get question by ID
-const getQuestionById = async (req, res) => {
-  const { id } = req.params;
+const getQuestionById = async (id) => {
+  // const { id } = req.params;
 
   try {
     const query = `
@@ -209,8 +209,10 @@ const getQuestionById = async (req, res) => {
       return res.status(404).json({ error: "Question not found" });
     }
 
-    const question = result.rows[0];
-    res.status(200).json(question);
+    return result.rows[0]; // Return the question object
+    // const question = result.rows[0];
+    // res.status(200).json(question);
+
   } catch (error) {
     console.error("Error fetching question by ID:", error);
     res.status(500).json({ error: "Could not fetch question by ID" });

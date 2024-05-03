@@ -154,7 +154,9 @@ const deleteCompany = catchAsyncErrors(async (req, res, next) => {
       // Begin a transaction
       await client.query('BEGIN');
   
-      // Delete assessments associated with the company
+    //For Postman comment out the code. NOTE: This code is not a comment for UI integration: Line 159-166
+
+    // Delete assessments associated with the company
       await client.query('DELETE FROM assessments WHERE company_id = $1', [companyId]);
   
       // Delete tests associated with the company

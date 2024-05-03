@@ -48,6 +48,8 @@ const getAllCompaniesOfUser = catchAsyncErrors(async (req, res, next) => {
 // create company
 const createCompany = catchAsyncErrors(async (req, res, next) => {
     try {
+        await createCompanyTable();
+
          // Extract user ID from req object (provided by verifyTokenAndExtractUserId middleware)
          const userId = req.user.id;
          console.log(userId);
@@ -70,8 +72,6 @@ const createCompany = catchAsyncErrors(async (req, res, next) => {
             stripeCustomerId,
             planId,
         };
-
-        await createCompanyTable();
 
         // Save the company data in the database
         const newCompany = await saveCompany(companyData);

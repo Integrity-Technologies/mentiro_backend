@@ -41,15 +41,6 @@ const saveCandidate = async (candidateData) => {
       return { error: 'Candidate with this email already exists' };
     }
 
-     // Check if a candidate with the same email already exists
-     const existingemail = await client.query(
-        'SELECT * FROM "user" WHERE email = $1',
-        [email]
-      );
-      if (existingemail.rows.length > 0) {
-        return { error: 'user with this email already exists' };
-      }
-
     const insertQuery = `
       INSERT INTO candidate (
         first_name,

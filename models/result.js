@@ -40,14 +40,14 @@ const saveResult = async (resultData) => {
   } = resultData;
   try {
 
-    // Check if the question with the same text already exists
+    // check if the Result with the same candidate id and test id already exists
     const checkQuery = `
-      SELECT * FROM results WHERE test_id = $1
-    `;
-    const checkResult = await client.query(checkQuery, [test_id]);
-    if (checkResult.rows.length > 0) {
-        return { error: 'Result with this test already exists' };
-    }
+  SELECT * FROM results WHERE test_id = $1 AND candidate_id = $2
+`;
+const checkResult = await client.query(checkQuery, [test_id, candidate_id]);
+if (checkResult.rows.length > 0) {
+    return { error: 'Result with the same candidate id and test id already exists' };
+}
 
     const insertQuery = `
       INSERT INTO results (

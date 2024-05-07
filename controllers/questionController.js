@@ -88,9 +88,32 @@ const getAllQuestion = async (req, res) => {
               SELECT * FROM question;
           `;
       const result = await client.query(getAllQuery);
-  
       const questions = result.rows;
-      res.status(200).json(questions);
+      // If no tests found, return an empty array
+    if (questions.length === 0) {
+      return res.status(400).json({ error: "Questions not found" });;
+    }
+
+    // Fetch category names for each test
+    const categoriesMap = new Map(); // Initialize an empty map for category names
+    for (const test of questions) {
+      const categoryIds = test.categories.filter(Boolean); // Filter out null or undefined values
+      if (categoryIds.length > 0) {
+        const categoryResult = await client.query('SELECT id, category_name FROM "category" WHERE id = ANY($1)', [categoryIds]);
+        categoryResult.rows.forEach(category => {
+          categoriesMap.set(category.id, category.category_name);
+        });
+      }
+    }
+
+    const QuestionsWithNames = questions.map(question => ({
+      ...question,
+      categories: question.categories.filter(Boolean).map(categoryId => categoriesMap.get(categoryId))
+    }));
+
+
+    res.status(200).json(QuestionsWithNames);
+      // res.status(200).json(questions);
     } catch (error) {
       console.error("Error fetching questions:", error);
       res.status(500).json({ error: "Could not fetch questions" });
@@ -143,68 +166,68 @@ const deleteQuestion = async (req, res) => {
   }
 };
 
-  // Update Question
-  const updateQuestion = async (req, res) => {
-    const { id } = req.params;
-    const { question_text, difficulty_level, category_names } = req.body;
-  
-    try {
-      // Fetch the existing question data from the database
-      // const existingQuestion = await getQuestionById(id);
-      const query = `
-      SELECT * FROM question
-      WHERE id = $1;
-    `;
-    const questionID = await client.query(query, [id]);
+ // Update Question
+ const updateQuestion = async (req, res) => {
+  const { id } = req.params;
+  const { question_text, difficulty_level, category_names } = req.body;
 
-    if (questionID.rows.length === 0) {
+  try {
+    // Fetch the existing question data from the database
+    // const existingQuestion = await getQuestionById(id);
+    const query = `
+    SELECT * FROM question
+    WHERE id = $1;
+  `;
+  const questionID = await client.query(query, [id]);
+
+  if (questionID.rows.length === 0) {
+    return res.status(404).json({ error: "Question not found" });
+  }
+
+    // if (!existingQuestion) {
+    //   return res.status(404).json({ error: "Question not found" });
+    // }
+
+    // Find category IDs for the updated category names
+    const updatedCategoryIds = await findCategoryIdsByName(category_names);
+
+    // Compare the updated fields with existing data
+    if (
+      question_text === questionID.question_text &&
+      difficulty_level === questionID.difficulty_level &&
+      JSON.stringify(updatedCategoryIds.sort()) === JSON.stringify(questionID.categories.sort())
+    ) {
+      return res.status(400).json({ error: "No changes to update" });
+    }
+
+    const updateQuery = `
+      UPDATE question 
+      SET 
+          question_text = $1,
+          difficulty_level = $2,
+          categories = $3,
+          updated_date = CURRENT_TIMESTAMP
+      WHERE id = $4
+      RETURNING *;
+    `;
+    const values = [question_text, difficulty_level, updatedCategoryIds, id];
+
+    const result = await client.query(updateQuery, values);
+
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: "Question not found" });
     }
-  
-      // if (!existingQuestion) {
-      //   return res.status(404).json({ error: "Question not found" });
-      // }
-  
-      // Find category IDs for the updated category names
-      const updatedCategoryIds = await findCategoryIdsByName(category_names);
-  
-      // Compare the updated fields with existing data
-      if (
-        question_text === questionID.question_text &&
-        difficulty_level === questionID.difficulty_level &&
-        JSON.stringify(updatedCategoryIds.sort()) === JSON.stringify(questionID.categories.sort())
-      ) {
-        return res.status(400).json({ error: "No changes to update" });
-      }
-  
-      const updateQuery = `
-        UPDATE question 
-        SET 
-            question_text = $1,
-            difficulty_level = $2,
-            categories = $3,
-            updated_date = CURRENT_TIMESTAMP
-        WHERE id = $4
-        RETURNING *;
-      `;
-      const values = [question_text, difficulty_level, updatedCategoryIds, id];
-  
-      const result = await client.query(updateQuery, values);
-  
-      if (result.rows.length === 0) {
-        return res.status(404).json({ error: "Question not found" });
-      }
-  
-      const updatedQuestion = result.rows[0];
-      res.status(200).json(updatedQuestion);
-    } catch (error) {
-      console.error("Error updating question:", error);
-      res.status(500).json({ error: "Could not update question" });
-    }
-  };
-  
-  // Get question by ID
-const getQuestionById = async (req, res) => {
+
+    const updatedQuestion = result.rows[0];
+    res.status(200).json(updatedQuestion);
+  } catch (error) {
+    console.error("Error updating question:", error);
+    res.status(500).json({ error: "Could not update question" });
+  }
+};
+
+ // Get question by ID
+ const getQuestionById = async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -218,8 +241,10 @@ const getQuestionById = async (req, res) => {
       return res.status(404).json({ error: "Question not found" });
     }
 
+    // return result.rows[0]; // Return the question object
     const question = result.rows[0];
     res.status(200).json(question);
+
   } catch (error) {
     console.error("Error fetching question by ID:", error);
     res.status(500).json({ error: "Could not fetch question by ID" });

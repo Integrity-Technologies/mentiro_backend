@@ -49,6 +49,8 @@ const getAllCompaniesOfUser = catchAsyncErrors(async (req, res, next) => {
 // create company
 const createCompany = catchAsyncErrors(async (req, res, next) => {
     try {
+        await createCompanyTable();
+
          // Extract user ID from req object (provided by verifyTokenAndExtractUserId middleware)
          const userId = req.user.id;
          console.log(userId);
@@ -71,8 +73,6 @@ const createCompany = catchAsyncErrors(async (req, res, next) => {
             stripeCustomerId,
             planId,
         };
-
-        await createCompanyTable();
 
         // Save the company data in the database
         const newCompany = await saveCompany(companyData);
@@ -155,7 +155,9 @@ const deleteCompany = catchAsyncErrors(async (req, res, next) => {
       // Begin a transaction
       await client.query('BEGIN');
   
-      // Delete assessments associated with the company
+    //For Postman comment out the code. NOTE: This code is not a comment for UI integration: Line 159-163
+
+    // Delete assessments associated with the company
       await client.query('DELETE FROM assessments WHERE company_id = $1', [companyId]);
   
       // Delete tests associated with the company

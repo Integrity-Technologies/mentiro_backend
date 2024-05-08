@@ -20,7 +20,7 @@ console.log(token, " from isAuthenticatedUser function in middleware");
   const decodedData = jwt.verify(token, process.env.JWT_SECRET);
 
   // Fetch user data from PostgreSQL based on decoded user id
-  const userData = await client.query('SELECT * FROM "user" WHERE id = $1', [decodedData.id]);
+  const userData = await client.query('SELECT * FROM "users" WHERE id = $1', [decodedData.id]);
 
   if (userData.rows.length === 0) {
     return next(new ErrorHandler("User not found", 404));

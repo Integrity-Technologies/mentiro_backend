@@ -3,7 +3,7 @@
 const { client } = require("../db/index.js");
 
 const createCandidatesTableQuery = `
-    CREATE TABLE IF NOT EXISTS candidate (
+    CREATE TABLE IF NOT EXISTS candidates (
         id SERIAL PRIMARY KEY,
         first_name VARCHAR,
         last_name VARCHAR,
@@ -34,7 +34,7 @@ const saveCandidate = async (candidateData) => {
   try {
     // Check if a candidate with the same email already exists
     const existingCandidate = await client.query(
-      'SELECT * FROM candidate WHERE email = $1',
+      'SELECT * FROM candidates WHERE email = $1',
       [email]
     );
     if (existingCandidate.rows.length > 0) {
@@ -42,7 +42,7 @@ const saveCandidate = async (candidateData) => {
     }
 
     const insertQuery = `
-      INSERT INTO candidate (
+      INSERT INTO candidates (
         first_name,
         last_name,
         email,

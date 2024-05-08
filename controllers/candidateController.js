@@ -6,7 +6,7 @@ const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 
 const getAllCandidate = catchAsyncErrors(async (req, res) => {
   try {
-    const result = await client.query('SELECT * FROM candidate');
+    const result = await client.query('SELECT * FROM candidates');
     res.status(200).json(result.rows);
   } catch (error) {
     res.status(500).json({ message: "Error getting candidates", error: error.message });
@@ -30,7 +30,7 @@ const editCandidateById = catchAsyncErrors(async (req, res) => {
     const updatedData = req.body;
     try {
       // Check if the candidate exists
-      const existingCandidate = await client.query('SELECT * FROM candidate WHERE id = $1', [candidateId]);
+      const existingCandidate = await client.query('SELECT * FROM candidates WHERE id = $1', [candidateId]);
       if (existingCandidate.rows.length === 0) {
         return res.status(404).json({ message: "Candidate not found" });
       }
@@ -43,7 +43,7 @@ const editCandidateById = catchAsyncErrors(async (req, res) => {
 
       // Check if the updated email already exists
       const emailCheck = await client.query(
-        'SELECT * FROM candidate WHERE email = $1 AND id != $2',
+        'SELECT * FROM candidates WHERE email = $1 AND id != $2',
         [updatedData.email, candidateId]
       );
       if (emailCheck.rows.length > 0) {
@@ -52,7 +52,7 @@ const editCandidateById = catchAsyncErrors(async (req, res) => {
   
       // Perform the update query
       const result = await client.query(
-        'UPDATE candidate SET first_name = $1, last_name = $2, email = $3 WHERE id = $4 RETURNING *',
+        'UPDATE candidates SET first_name = $1, last_name = $2, email = $3 WHERE id = $4 RETURNING *',
         [updatedData.first_name, updatedData.last_name, updatedData.email, candidateId]
       );
       
@@ -72,7 +72,7 @@ const getCandidateById = catchAsyncErrors(async (req, res) => {
     const candidateId = req.params.id;
     try {
       // Query the database for the candidate with the specified ID
-      const result = await client.query('SELECT * FROM candidate WHERE id = $1', [candidateId]);
+      const result = await client.query('SELECT * FROM candidates WHERE id = $1', [candidateId]);
       
       // Check if a candidate was found
       if (result.rows.length === 0) {
@@ -92,7 +92,7 @@ const deleteCandidateById = catchAsyncErrors(async (req, res) => {
     const candidateId = req.params.id;
     try {
       // Check if the candidate exists
-      const existingCandidate = await client.query('SELECT * FROM candidate WHERE id = $1', [candidateId]);
+      const existingCandidate = await client.query('SELECT * FROM candidates WHERE id = $1', [candidateId]);
       if (existingCandidate.rows.length === 0) {
         return res.status(404).json({ message: "Candidate not found" });
       }
@@ -106,7 +106,7 @@ const deleteCandidateById = catchAsyncErrors(async (req, res) => {
       await client.query('DELETE FROM companies WHERE created_by = $1', [candidateId]);
   
       // Now delete the candidate
-      const result = await client.query('DELETE FROM candidate WHERE id = $1 RETURNING *', [candidateId]);
+      const result = await client.query('DELETE FROM candidates WHERE id = $1 RETURNING *', [candidateId]);
       
       // Commit transaction if successful
       await client.query('COMMIT');

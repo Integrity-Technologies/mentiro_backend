@@ -3,14 +3,14 @@ const { client } = require("../db/index.js");
 
 // -- Create Category Table
 const createCategoryTableQuery = `
-CREATE TABLE IF NOT EXISTS category (
+CREATE TABLE IF NOT EXISTS categories (
     id SERIAL PRIMARY KEY,
     category_name VARCHAR NOT NULL,
     created_by INT,
     is_active BOOLEAN DEFAULT TRUE,
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (created_by) REFERENCES "user"(id)
+    FOREIGN KEY (created_by) REFERENCES "users"(id)
 );
 `;
 
@@ -33,7 +33,7 @@ const saveCategory = async (categoryData) => {
   } = categoryData;
   try {
     const insertQuery = `
-      INSERT INTO category (
+      INSERT INTO categories (
         category_name,
         created_by,
         is_active

@@ -5,17 +5,50 @@ const { client } = require("../db/index.js");
 
 
 // Function to calculate the score
-const calculateScore = (questions) => {
-  let score = 0;
-  for (const question of questions) {
-    if (question.is_correct === 1) {
-      score++; // Increment score for each correct answer
-    }
-  }
-  return score;
+// const calculateScore = (questions) => {
+//   let score = 0;
+//   for (const question of questions) {
+//     if (question.is_correct === 1) {
+//       score++; // Increment score for each correct answer
+//     }
+//   }
+//   return score;
+// };
+// Function to calculate the percentage score
+const calculatePercentage = (correctQuestions, totalQuestions) => {
+  const percentage = (correctQuestions / totalQuestions) * 100;
+  // Ensure the percentage doesn't exceed 100
+  return Math.min(percentage, 100);
 };
 
 
+// Function to handle answer submission
+// const submitAnswer = async (req, res) => {
+//   try {
+//     // Extract data from request body
+//     const { resultId, question_id, option } = req.body;
+
+//     // Verify the answer
+//     const answer = await answerController.verifyAnswer(question_id, option);
+
+//     // Fetch the result from the database
+//     const result = await getResultById(resultId);
+
+//     // Update the questions array with the answered question
+//     result.questions.push({ question_id, answer_id: answer.answer_id, is_correct:answer.is_correct });
+
+//    const score =  await calculateScore(result.questions);
+
+//     // Calculate the score and update the result in the database
+//     await updateResult(resultId, result.questions,score);
+
+//     // Respond with success message
+//     res.status(200).json({ message: "Answer submitted successfully" });
+//   } catch (error) {
+//     console.error("Error submitting answer:", error);
+//     res.status(500).json({ error: "Error submitting answer" });
+//   }
+// };
 // Function to handle answer submission
 const submitAnswer = async (req, res) => {
   try {
@@ -29,12 +62,20 @@ const submitAnswer = async (req, res) => {
     const result = await getResultById(resultId);
 
     // Update the questions array with the answered question
-    result.questions.push({ question_id, answer_id: answer.answer_id, is_correct:answer.is_correct });
+    result.questions.push({ question_id, answer_id: answer.answer_id, is_correct: answer.is_correct });
 
-   const score =  await calculateScore(result.questions);
+    // Calculate the number of correct questions
+    const correctQuestions = result.questions.reduce((count, question) => count + question.is_correct, 0);
 
-    // Calculate the score and update the result in the database
-    await updateResult(resultId, result.questions,score);
+    // Calculate the percentage score
+    const totalQuestions = result.questions.length;
+    const scorePercentage = calculatePercentage(correctQuestions, totalQuestions);
+
+    // Add percentage sign to the score
+    // const scoreWithPercentage = `${scorePercentage.toFixed(2)}%`;
+
+    // Update the result in the database with the score including percentage sign
+    await updateResult(resultId, result.questions, parseInt(scorePercentage.toFixed(2)));
 
     // Respond with success message
     res.status(200).json({ message: "Answer submitted successfully" });
@@ -47,7 +88,7 @@ const submitAnswer = async (req, res) => {
 // Function to find candidate by ID
 const findCandidate = async (candidateId) => {
   try {
-    const result = await client.query('SELECT id FROM "candidate" WHERE id = $1', [candidateId]);
+    const result = await client.query('SELECT id FROM "candidates" WHERE id = $1', [candidateId]);
     if (result.rows.length > 0) {
       return result.rows[0].id;
     } else {
@@ -134,13 +175,13 @@ const createResult = async (req, res) => {
 };
 
 
-function calculatePercentage(score, maxScore = 100) {
-  if (score === 0) return 0;
-  // Use Math.round to round to the nearest integer, preventing exceeding 100%
-  const percentage = Math.round((score / maxScore) * 100);
-  // Ensure the percentage is not above 100
-  return Math.min(percentage, 100);
-}
+// function calculatePercentage(score, maxScore = 100) {
+//   if (score === 0) return 0;
+//   // Use Math.round to round to the nearest integer, preventing exceeding 100%
+//   const percentage = Math.round((score / maxScore) * 100);
+//   // Ensure the percentage is not above 100
+//   return Math.min(percentage, 100);
+// }
 
 
 // by chatgpt but 2nd code 
@@ -156,7 +197,7 @@ const getAllResults = async (req, res) => {
 
     // Fetch candidate names for each result
     const candidateIds = results.rows.map(result => result.candidate_id);
-    const candidateResult = await client.query('SELECT id, first_name FROM "candidate" WHERE id = ANY($1)', [candidateIds]);
+    const candidateResult = await client.query('SELECT id, first_name FROM "candidates" WHERE id = ANY($1)', [candidateIds]);
     const candidatesMap = new Map(candidateResult.rows.map(candidate => [candidate.id, candidate.first_name]));
 
     // Fetch test names for each result
@@ -199,8 +240,8 @@ const getAllResults = async (req, res) => {
       }
 
       // Calculate score and add to test
-      const score = calculatePercentage(rest.score);
-      candidate.assessments[assessmentIndex].tests[testIndex].score = score;
+      // const score = calculatePercentage(rest.score);
+      candidate.assessments[assessmentIndex].tests[testIndex].score = rest.score;
 
       return { ...acc, [candidate_id]: candidate };
     }, {});

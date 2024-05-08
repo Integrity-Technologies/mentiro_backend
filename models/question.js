@@ -3,7 +3,7 @@ const { client } = require("../db/index.js");
 
 // -- Create Question Table
 const createQuestionTableQuery = `
-CREATE TABLE IF NOT EXISTS question (
+CREATE TABLE IF NOT EXISTS questions (
     id SERIAL PRIMARY KEY,
     question_text VARCHAR NOT NULL,
     question_type VARCHAR CHECK (question_type IN ('MCQS', 'true_false')),
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS question (
     is_custom BOOLEAN DEFAULT FALSE,
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (created_by) REFERENCES "user"(id)
+    FOREIGN KEY (created_by) REFERENCES "users"(id)
 );
 `;
 
@@ -42,7 +42,7 @@ const saveQuestion = async (questionData) => {
 
     // Check if the question with the same text already exists
     const checkQuery = `
-      SELECT * FROM question WHERE question_text = $1
+      SELECT * FROM questions WHERE question_text = $1
     `;
     const checkResult = await client.query(checkQuery, [question_text]);
     if (checkResult.rows.length > 0) {
@@ -50,7 +50,7 @@ const saveQuestion = async (questionData) => {
     }
 
     const insertQuery = `
-      INSERT INTO question (
+      INSERT INTO questions (
         question_text,
         question_type,
         difficulty_level,

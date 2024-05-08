@@ -27,7 +27,7 @@ const getAllTests = catchAsyncErrors(async (req, res, next) => {
     for (const test of tests) {
       const categoryIds = test.categories.filter(Boolean); // Filter out null or undefined values
       if (categoryIds.length > 0) {
-        const categoryResult = await client.query('SELECT id, category_name FROM "category" WHERE id = ANY($1)', [categoryIds]);
+        const categoryResult = await client.query('SELECT id, category_name FROM "categories" WHERE id = ANY($1)', [categoryIds]);
         categoryResult.rows.forEach(category => {
           categoriesMap.set(category.id, category.category_name);
         });
@@ -71,7 +71,7 @@ const findCompanyIdByName = async (companyName) => {
       const categoryIds = [];
   
       for (const categoryName of categoryNames) {
-        const result = await client.query('SELECT id FROM "category" WHERE category_name = $1', [categoryName]);
+        const result = await client.query('SELECT id FROM "categories" WHERE category_name = $1', [categoryName]);
         if (result.rows.length > 0) {
           categoryIds.push(result.rows[0].id);
         } else {

@@ -18,7 +18,7 @@ const verifyTokenAndExtractUserId = catchAsyncErrors(async(req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
    // Fetch user data from PostgreSQL based on decoded user id
-  const userData = await client.query('SELECT * FROM "user" WHERE id = $1', [decoded.id]);
+  const userData = await client.query('SELECT * FROM "users" WHERE id = $1', [decoded.id]);
 
   if (userData.rows.length === 0) {
     return next(new ErrorHandler("User not found", 404));

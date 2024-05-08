@@ -6,7 +6,7 @@ const catchAsyncErrors = require("../middleware/catchAsyncErrors.js");
 const getAllCategory = catchAsyncErrors(async (req, res, next) => {
   try {
     await createCategoryTable();
-    const category = await client.query('SELECT * FROM "category"');
+    const category = await client.query('SELECT * FROM "categories"');
     res.status(200).json(category.rows);
   } catch (error) {
     console.error("Error fetching category:", error);
@@ -26,7 +26,7 @@ const createCategory = catchAsyncErrors(async (req, res) => {
     }
 
 // Check if a category with the same name already exists
-const existingCategory = await client.query('SELECT * FROM category WHERE category_name = $1', [category_name]);
+const existingCategory = await client.query('SELECT * FROM categories WHERE category_name = $1', [category_name]);
 if (existingCategory.rows.length > 0) {
     return res.status(400).json({ error: "Category with this name already exists" });
 }
@@ -59,7 +59,7 @@ const getCategoryByName = catchAsyncErrors(async (req, res) => {
   try {
     const { category_name } = req.params;
     const query = `
-      SELECT * FROM category
+      SELECT * FROM categories
       WHERE category_name = $1`;
     const values = [category_name];
     const result = await client.query(query, values);
@@ -84,7 +84,7 @@ const editCategoryById = catchAsyncErrors(async (req, res) => {
 
     // Check if the new category name already exists in the database
     const existingCategory = await client.query(
-      `SELECT * FROM category WHERE category_name = $1 AND id != $2`,
+      `SELECT * FROM categories WHERE category_name = $1 AND id != $2`,
       [category_name, categoryId]
     );
 
@@ -93,7 +93,7 @@ const editCategoryById = catchAsyncErrors(async (req, res) => {
     }
 
     const updateCategory = await client.query(
-      `UPDATE category SET category_name = $1 WHERE id = $2 RETURNING *`,
+      `UPDATE categories SET category_name = $1 WHERE id = $2 RETURNING *`,
       [category_name, categoryId]
     );
 
@@ -110,7 +110,7 @@ const deleteCategoryById = catchAsyncErrors(async (req, res) => {
 
     // Check if the category with the given ID exists
     const checkQuery = `
-      SELECT * FROM category
+      SELECT * FROM categories
       WHERE id = $1`;
     const checkValues = [categoryId];
     const checkResult = await client.query(checkQuery, checkValues);
@@ -120,7 +120,7 @@ const deleteCategoryById = catchAsyncErrors(async (req, res) => {
 
     // Delete the category
     const deleteQuery = `
-      DELETE FROM category
+      DELETE FROM categories
       WHERE id = $1`;
     const deleteValues = [categoryId];
     await client.query(deleteQuery, deleteValues);

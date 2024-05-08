@@ -8,7 +8,7 @@ const findCategoryIdsByName = async (categoryNames) => {
     const categoryIds = [];
 
     for (const categoryName of categoryNames) {
-      const result = await client.query('SELECT id FROM "category" WHERE category_name = $1', [categoryName]);
+      const result = await client.query('SELECT id FROM "categories" WHERE category_name = $1', [categoryName]);
       if (result.rows.length > 0) {
         categoryIds.push(result.rows[0].id);
       } else {
@@ -38,7 +38,7 @@ const createQuestionAndAnswer = async (req, res) => {
     const categoryIds = await findCategoryIdsByName(category_names);
 
     // Check if the question already exists
-    const existingQuestion = await client.query('SELECT id FROM question WHERE question_text = $1', [question_text]);
+    const existingQuestion = await client.query('SELECT id FROM questions WHERE question_text = $1', [question_text]);
     let questionId;
     if (existingQuestion.rows.length > 0) {
       // If the question already exists, use its ID
@@ -85,7 +85,7 @@ const createQuestionAndAnswer = async (req, res) => {
 const getAllQuestion = async (req, res) => {
     try {
       const getAllQuery = `
-              SELECT * FROM question;
+              SELECT * FROM questions;
           `;
       const result = await client.query(getAllQuery);
       const questions = result.rows;
@@ -99,7 +99,7 @@ const getAllQuestion = async (req, res) => {
     for (const test of questions) {
       const categoryIds = test.categories.filter(Boolean); // Filter out null or undefined values
       if (categoryIds.length > 0) {
-        const categoryResult = await client.query('SELECT id, category_name FROM "category" WHERE id = ANY($1)', [categoryIds]);
+        const categoryResult = await client.query('SELECT id, category_name FROM "categories" WHERE id = ANY($1)', [categoryIds]);
         categoryResult.rows.forEach(category => {
           categoriesMap.set(category.id, category.category_name);
         });
@@ -127,7 +127,7 @@ const deleteQuestion = async (req, res) => {
   try {
     // Check if the question exists
     const checkQuery = `
-      SELECT * FROM question 
+      SELECT * FROM questions 
       WHERE id = $1;
     `;
     const checkValues = [id];
@@ -140,7 +140,7 @@ const deleteQuestion = async (req, res) => {
 
     // Use the ID to delete the question
     const deleteQuery = `
-      DELETE FROM question 
+      DELETE FROM questions 
       WHERE id = $1 
       RETURNING *;
     `;
@@ -175,7 +175,7 @@ const deleteQuestion = async (req, res) => {
     // Fetch the existing question data from the database
     // const existingQuestion = await getQuestionById(id);
     const query = `
-    SELECT * FROM question
+    SELECT * FROM questions
     WHERE id = $1;
   `;
   const questionID = await client.query(query, [id]);
@@ -201,7 +201,7 @@ const deleteQuestion = async (req, res) => {
     }
 
     const updateQuery = `
-      UPDATE question 
+      UPDATE questions 
       SET 
           question_text = $1,
           difficulty_level = $2,
@@ -232,7 +232,7 @@ const deleteQuestion = async (req, res) => {
 
   try {
     const query = `
-      SELECT * FROM question
+      SELECT * FROM questions
       WHERE id = $1;
     `;
     const result = await client.query(query, [id]);

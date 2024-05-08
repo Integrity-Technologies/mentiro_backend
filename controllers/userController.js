@@ -19,7 +19,7 @@ const signup = catchAsyncErrors(async (req, res, next) => {
   await createUserTable();
 
   // Check if a user with the same email already exists
-  const existingUser = await client.query('SELECT * FROM "user" WHERE email = $1', [email]);
+  const existingUser = await client.query('SELECT * FROM "users" WHERE email = $1', [email]);
   if (existingUser.rows.length > 0) {
     return res.status(400).json({ error: "User with this email already exists" });
   }
@@ -55,7 +55,7 @@ const addUser = catchAsyncErrors(async (req, res, next) => {
   await createUserTable();
 
   // Check if a user with the same email already exists
-  const existingUser = await client.query('SELECT * FROM "user" WHERE email = $1', [email]);
+  const existingUser = await client.query('SELECT * FROM "users" WHERE email = $1', [email]);
   if (existingUser.rows.length > 0) {
     return res.status(400).json({ error: "User with this email already exists" });
   }
@@ -89,7 +89,7 @@ const login = catchAsyncErrors(async (req, res, next) => {
 
   // Check if user exists with the provided email
   try {
-    const existingUser = await client.query('SELECT * FROM "user" WHERE email = $1', [email]);
+    const existingUser = await client.query('SELECT * FROM "users" WHERE email = $1', [email]);
 
     if (existingUser.rows.length === 0) {
       return res.status(400).json({ error: "User with this email id doesn't exists" });
@@ -129,7 +129,7 @@ const logout = catchAsyncErrors(async (req, res, next) => {
 const getAllUsers = catchAsyncErrors(async (req, res, next) => {
   try {
     // Fetch all users from the database
-    const users = await client.query('SELECT * FROM "user"');
+    const users = await client.query('SELECT * FROM "users"');
 
     res.status(200).json(users.rows); // Return all user data in the response
   } catch (error) {
@@ -144,7 +144,7 @@ const forgotPassword = catchAsyncErrors(async (req, res, next) => {
 
   try {
     // Check if user exists with the provided email
-    const existingUser = await client.query('SELECT * FROM "user" WHERE email = $1', [email]);
+    const existingUser = await client.query('SELECT * FROM "users" WHERE email = $1', [email]);
 
     if (existingUser.rows.length === 0) {
       return res.status(400).json({ error: "User with this email doesn't exist" });
@@ -173,7 +173,7 @@ const forgotPassword = catchAsyncErrors(async (req, res, next) => {
     res.status(200).json({ message: "Password reset link sent successfully!" });
   } catch (error) {
     // Set reset token and expiry to null if email sending fails
-    await client.query('UPDATE "user" SET reset_token = $1, reset_token_expiry = $2 WHERE email = $3',
+    await client.query('UPDATE "users" SET reset_token = $1, reset_token_expiry = $2 WHERE email = $3',
       [null, null, email]);
 
     console.error("Error sending password reset email:", error);
@@ -188,7 +188,7 @@ const resetPassword = catchAsyncErrors(async (req, res, next) => {
   try {
     // Check if reset token is valid and not expired
     const now = new Date(Date.now());
-    const user = await client.query('SELECT * FROM "user" WHERE reset_token = $1 AND reset_token_expiry > $2',
+    const user = await client.query('SELECT * FROM "users" WHERE reset_token = $1 AND reset_token_expiry > $2',
       [token, now]);
 
     if (user.rows.length === 0) {
@@ -206,7 +206,7 @@ const resetPassword = catchAsyncErrors(async (req, res, next) => {
     const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
     
     // Update user password and remove reset token/expiry
-    await client.query('UPDATE "user" SET password = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2',
+    await client.query('UPDATE "users" SET password = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2',
       [hashedPassword, userToUpdate.id]);
       
     res.status(200).json({ message: "Password reset successfully!" });
@@ -220,7 +220,7 @@ const getUserDetails = catchAsyncErrors(async (req, res, next) => {
   const userId = req.user.id;
 
   try {
-    const existingUser = await client.query('SELECT * FROM "user" WHERE id = $1', [userId]);
+    const existingUser = await client.query('SELECT * FROM "users" WHERE id = $1', [userId]);
 
     if (existingUser.rows.length === 0) {
       return res.status(400).json({ error: "User not found" });
@@ -250,7 +250,7 @@ const editUser = catchAsyncErrors(async (req, res, next) => {
 
   try {
     const existingUser = await client.query(
-      'SELECT * FROM "user" WHERE id = $1',
+      'SELECT * FROM "users" WHERE id = $1',
       [userId]
     );
 
@@ -258,24 +258,25 @@ const editUser = catchAsyncErrors(async (req, res, next) => {
       return res.status(400).json({ error: "User not found" });
     }
 
-    // Check if the updated email already exists
-    // Check if the updated email already exists
-    const emailCheck = await client.query(
-      'SELECT * FROM "user" WHERE email = $1 and id= $2',
-      [email, userId]
-    );
-    console.log("Email check result:", emailCheck.rows);
-    if (emailCheck.rows.length > 0) {
-      return res.status(400).json({ error: "Email already exists" });
+    let hashedPassword = null;
+
+    // Check if password is provided in the request body
+    if (password) {
+      hashedPassword = await bcrypt.hash(password, saltRounds);
     }
 
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    // Update user details
-    await client.query(
-      'UPDATE "user" SET first_name = $2, last_name = $3, email = $4, phone = $5, password = $6 WHERE id = $1',
-      [userId, first_name, last_name, email, phone, hashedPassword] // Corrected password position
-    );
+    // Update user details, excluding password if not provided
+    const updateQuery = `
+      UPDATE "users" 
+      SET first_name = $2, last_name = $3, email = $4, phone = $5 ${hashedPassword ? ', password = $6' : ''} 
+      WHERE id = $1
+    `;
+    const values = [userId, first_name, last_name, email, phone];
+    // If hashedPassword is not null, add it to the values array
+    if (hashedPassword) {
+      values.push(hashedPassword);
+    }
+    await client.query(updateQuery, values);
 
     res
       .status(200)
@@ -285,14 +286,13 @@ const editUser = catchAsyncErrors(async (req, res, next) => {
     res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 });
-
 // Delete user (Admin)
 const deleteUser = catchAsyncErrors(async (req, res, next) => {
   const userId = req.params.id;
 
   try {
     const existingUser = await client.query(
-      'SELECT * FROM "user" WHERE id = $1',
+      'SELECT * FROM "users" WHERE id = $1',
       [userId]
     );
 
@@ -308,7 +308,7 @@ const deleteUser = catchAsyncErrors(async (req, res, next) => {
     );
     await client.query('DELETE FROM assessments WHERE created_by = $1', [userId]);
     // Add similar DELETE statements for other dependent tables
-    await client.query('DELETE FROM "user" WHERE id = $1', [userId]);
+    await client.query('DELETE FROM "users" WHERE id = $1', [userId]);
     await client.query('COMMIT'); // Commit transaction if successful
 
     res.status(200).json({ success: true, message: "User deleted successfully" });

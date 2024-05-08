@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS tests (
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (company_id) REFERENCES companies(id),
-    FOREIGN KEY (created_by) REFERENCES "user"(id)
+    FOREIGN KEY (created_by) REFERENCES "users"(id)
 );
 `;
 

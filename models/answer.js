@@ -11,8 +11,8 @@ CREATE TABLE IF NOT EXISTS answers (
     is_active BOOLEAN DEFAULT TRUE,
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (created_by) REFERENCES "user"(id),
-    FOREIGN KEY (question_id) REFERENCES "question"(id)
+    FOREIGN KEY (created_by) REFERENCES "users"(id),
+    FOREIGN KEY (question_id) REFERENCES "questions"(id)
 );
 `;
 

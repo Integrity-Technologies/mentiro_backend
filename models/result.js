@@ -13,11 +13,13 @@ CREATE TABLE IF NOT EXISTS results (
     started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (candidate_id) REFERENCES candidate(id),
+    FOREIGN KEY (candidate_id) REFERENCES candidates(id),
     FOREIGN KEY (test_id) REFERENCES tests(id),
     FOREIGN KEY (assessment_id) REFERENCES assessments(id)
 );
 `;
+
+// score INTEGER,
 
 // Create Results Table
 const createResultsTable = async () => {

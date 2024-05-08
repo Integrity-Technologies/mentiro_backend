@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS companies (
     is_active BOOLEAN DEFAULT TRUE,
     stripe_customer_id VARCHAR(255),
     plan_id VARCHAR(255),
-    FOREIGN KEY (created_by) REFERENCES "user"(id)
+    FOREIGN KEY (created_by) REFERENCES "users"(id)
 );
 `;
 

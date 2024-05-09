@@ -8,9 +8,9 @@ const getAllCompany = catchAsyncErrors(async (req, res, next) => {
     await createCompanyTable();
 
     const companyResult = await client.query(`
-      SELECT companies.*, "user".id as created_by, "user".first_name as created_by_user
+      SELECT companies.*, "users".id as created_by, "users".first_name as created_by_user
       FROM companies
-      LEFT JOIN "user" ON companies.created_by = "user".id
+      LEFT JOIN "users" ON companies.created_by = "users".id
     `);
 
     // If no companies found, return an empty array

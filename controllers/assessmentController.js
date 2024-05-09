@@ -90,15 +90,15 @@ const createAssessment = catchAsyncErrors(async (req, res, next) => {
     // Find test IDs by names
     const testIds = await findTestIdsByName(tests);
 
-    // Prepare tests array of objects
-    const testsData = tests.map((test, index) => ({
-      test_id: testIds[index],
-      test_difficulty: test.test_difficulty
-    }));
+   // Prepare tests array of objects
+   const testsData = tests.map((test, index) => ({
+    test_id: testIds[index],
+    test_difficulty: test.test_difficulty
+  }));
 
-    // Convert testsData to JSON string
-    const jsonTestsDataString = JSON.stringify(testsData);
-    console.log(testsData);
+  // Convert testsData to JSON string
+  // const jsonTestsDataString = JSON.stringify(testsData);
+  //   console.log(jsonTestsDataString);
     // Generate a unique link
     const link = await generateUniqueLink();
     // console.log(link.link, link.shareableLink + " from generateuniquelink() function in create assessments");
@@ -107,7 +107,7 @@ const createAssessment = catchAsyncErrors(async (req, res, next) => {
     const assessmentData = {
       assessment_name,
       company_id: companyId,
-      tests: jsonTestsDataString,
+      tests: testsData,
       shareableLink: link.shareableLink,
       uniquelink: link.link,
       created_by: req.user.id,

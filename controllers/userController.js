@@ -1,6 +1,7 @@
 // controllers/userController.js
 
 const { createUserTable, saveUser } = require("../models/user");
+const analytics = require('../segment/segmentConfig');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { client } = require("../db/index.js");
@@ -40,6 +41,37 @@ const signup = catchAsyncErrors(async (req, res, next) => {
       is_active,
       is_employee,
     });
+
+    if (!result.id) {
+      throw new Error("User ID is missing or invalid");
+    }
+   console.log(result.id);
+    // Identify the user in Segment
+    analytics.identify({
+      userId: String(result.id), // Ensure userId is a string
+      traits: {
+        email: result.email,
+        firstName: result.first_name,
+        lastName: result.last_name,
+        // Add any other traits you want to track
+      }
+    });
+
+    // Track the signup event in Segment
+analytics.track({
+  userId: String(result.id), // Ensure userId is a string
+  event: 'User Signed Up',
+  properties: {
+    // Add relevant properties about the signup event
+    email: result.email, // Email of the user who signed up
+    firstName: result.first_name, // First name of the user who signed up
+    lastName: result.last_name, // Last name of the user who signed up
+    signupMethod: 'Website', // Indicates the method used for signup
+    createdAt: new Date().toISOString(), // Timestamp of when the signup event occurred
+    // Add any other relevant properties you want to track
+  }
+});
+
     sendToken(result, 201, res);
   } catch (error) {
     console.error("Error occurred:", error);
@@ -76,6 +108,34 @@ const addUser = catchAsyncErrors(async (req, res, next) => {
       is_active,
       is_employee,
     });
+
+    if (!result.id) {
+      throw new Error("User ID is missing or invalid");
+    }
+   console.log(result.id);
+  
+    analytics.identify({
+      userId: String(result.id), 
+      traits: {
+        email: result.email,
+        firstName: result.first_name,
+        lastName: result.last_name,
+      }
+    });
+
+    // Track the signup event in Segment
+analytics.track({
+  userId: String(result.id), 
+  event: 'User Signed Up',
+  properties: {
+    email: result.email, 
+    firstName: result.first_name, 
+    lastName: result.last_name, 
+    signupMethod: 'Website', 
+    createdAt: new Date().toISOString(),
+  }
+});
+
     sendToken(result, 201, res);
   } catch (error) {
     console.error("Error occurred:", error);

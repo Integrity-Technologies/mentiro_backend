@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS assessments (
     assessment_name VARCHAR(100),
     company_id INTEGER,
     tests JSONB[],
+    assessment_time INTEGER,
     shareableLink VARCHAR(255),
     uniquelink VARCHAR(255),
     created_by INTEGER,
@@ -94,8 +95,10 @@ const saveAssessment = async (assessmentData) => {
     shareableLink,
     uniquelink,
     created_by,
+    assessment_time
   } = assessmentData;
   try {
+    console.log(created_by + " in assessment model");
     // Check if a link already exists
     const checkLinkQuery = `
       SELECT * FROM assessments WHERE shareableLink = $1
@@ -114,6 +117,9 @@ const saveAssessment = async (assessmentData) => {
       return { error: "Assessment with this name already exists" };
     }
 
+
+    // assessmentData.tests = JSON.stringify(assessmentData.tests);
+
     const insertQuery = `
       INSERT INTO assessments (
         assessment_name,
@@ -121,9 +127,10 @@ const saveAssessment = async (assessmentData) => {
         tests,
         shareableLink,
         uniquelink,
-        created_by
+        created_by,
+        assessment_time
       )
-      VALUES ($1, $2, $3, $4, $5, $6)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *;
     `;
     const values = [
@@ -133,6 +140,7 @@ const saveAssessment = async (assessmentData) => {
       shareableLink,
       uniquelink,
       created_by,
+      assessment_time
     ];
     const result = await client.query(insertQuery, values);
     console.log("Assessment data saved successfully");

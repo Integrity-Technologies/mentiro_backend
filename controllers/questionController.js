@@ -251,5 +251,36 @@ const deleteQuestion = async (req, res) => {
   }
 };
 
+const getAllQuestionByCategoryandDifficultyLevel = async (req, res) => {
+  try {
+    // Parse category names and difficulty levels from request body
+    const  categories  = req.body;
+    console.log(categories);
+    // Initialize an array to store results
+    const response = [];
 
-module.exports = { createQuestionAndAnswer, getAllQuestion, deleteQuestion, updateQuestion,getQuestionById };
+    // Loop through each category
+    for (const category of categories) {
+      // Query the database to fetch questions based on category and difficulty level
+      const query = `
+        SELECT * FROM questions
+        WHERE category_name = $1 AND difficulty_level = $2;
+      `;
+      const values = [category.category_name, category.difficulty_level];
+      const result = await client.query(query, values);
+
+      // Push category along with questions to response array
+      response.push({
+        category_name: category.category_name,
+        questions: result.rows
+      });
+    }
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error("Error fetching questions:", error);
+    res.status(500).json({ error: "Could not fetch questions" });
+  }
+};
+
+module.exports = { createQuestionAndAnswer, getAllQuestion, deleteQuestion, updateQuestion,getQuestionById, getAllQuestionByCategoryandDifficultyLevel };

@@ -6,17 +6,17 @@ const { sendEmail } = require("../utils/sendEmail.js");
 // Function to generate a unique random string
 const generateUniqueLink = async () => {
   let link;
-  let shareableLink; // Define shareableLink outside the loop
+  let shareableLink;
   let checkLinkResult;
   do {
     link = Math.random().toString(36).substring(2, 15);
-    shareableLink = `http://localhost:3000/api/Assessments/assessment?uniqueLink=${link}`; // Use link instead of undefined variable shareableLink
+    shareableLink = `http://localhost:3000/api/assessment?${link}`; // Unique link directly appended
     const checkLinkQuery = `
       SELECT * FROM assessments WHERE uniquelink = $1
     `;
     checkLinkResult = await client.query(checkLinkQuery, [link]);
   } while (checkLinkResult.rows.length > 0);
-  return { link, shareableLink }; // Return shareableLink after the loop
+  return { link, shareableLink }; // Return the link and the shareableLink
 };
 
 
@@ -143,6 +143,7 @@ const getAssessmentByLink = catchAsyncErrors(async (req, res) => {
 });
 
 
+
  
 // Create Assessment
 const createAssessment = async (req, res, next) => {
@@ -163,6 +164,7 @@ const createAssessment = async (req, res, next) => {
       return totalTime + test.total_time; // Assuming each test has a 'total_time' property
     }, 0);
     console.log(req.user.id + " this is user id i am getting");
+    const assessmentLinks = await generateUniqueLink();
     const assessmentData = {
       assessment_name,
       company_id: companyId,

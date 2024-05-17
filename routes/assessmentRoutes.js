@@ -7,7 +7,8 @@ const {
     getAssessmentByLink, 
     getAllUserAssessments, 
     updateAssessment, 
-    deleteAssessment 
+    deleteAssessment,
+    inviteCandidate
 } = require('../controllers/assessmentController');
 const {verifyTokenAndExtractUserId} = require("../middleware/verifyToken");
 
@@ -22,6 +23,9 @@ router.get('/my/assessments', verifyTokenAndExtractUserId, getAllUserAssessments
 
 // Get assessment by shareable link
 router.get("/assessment/:uniqueLink", verifyTokenAndExtractUserId, getAssessmentByLink); // tested in postman successfully
+
+// Invite candidate By Email
+router.post('/invite/candidate', verifyTokenAndExtractUserId, inviteCandidate);
 
 // Update assessment
 router.put('/assessment/:id', verifyTokenAndExtractUserId, updateAssessment); // tested in postman successfully

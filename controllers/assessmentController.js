@@ -1,6 +1,7 @@
 const { createAssessmentsTable, saveAssessment } = require("../models/assessment");
 const { client } = require("../db/index.js");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
+const { sendEmail } = require("../utils/sendEmail.js");
 
 // Function to generate a unique random string
 const generateUniqueLink = async () => {
@@ -254,4 +255,40 @@ const deleteAssessment = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
-module.exports = { createAssessment, getAllAssessments, getAssessmentByLink, getAllUserAssessments, updateAssessment, deleteAssessment };
+const inviteCandidate = async(req,res) => {
+  try {
+    const { assessmentId, candidateEmail, firstName, lastName } = req.body; // Assuming you have userEmail in your request body
+    
+    const result = await client.query('SELECT * FROM "assessments" WHERE id = $1', [assessmentId]);
+    if (result.rows.length === 0) {
+      return res.status(500).json({ error: "Assessment not found" });
+    }
+    
+    const assessment = result.rows[0];
+    const shareableLink = assessment.shareablelink; // Corrected property name
+    const assessmentTotalTime = assessment
+    console.log(assessment, " this is assessment from invite candidate function");
+    console.log(shareableLink, " this is link from invite candidate function");
+    const message = `
+      <p>Hi ${firstName},</p>
+      <p>Great news! You've been invited to take an assessment for integrity.</p>
+      <p>Completing this assessment will allow you to demonstrate the skills required for this role, so the employer can focus on your abilities rather than comparing resumes. This removes potential bias from the process, giving all candidates an equal opportunity to shine. The assessment will take ${assessment.assessment_time} minutes.</p>
+      <p>Wondering what's in an assessment? Here's a step-by-step guide</p>
+      <p>Which browser should you use? Can you do the assessment on your phone? Here's what you need to know</p>
+      <p>Facing an issue with the assessment? Here's how you can troubleshoot</p>
+      <a href="${shareableLink}" target="_blank" style="display: inline-block; background-color: #007bff; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Start assessment</a>
+    `;
+
+    await sendEmail({
+      email: candidateEmail,
+      subject: `mentiro Assessment Invitation`,
+      message,
+    });
+    res.status(200).json({ success: true, message: "Email sent successfully" });
+  } catch (error) {
+    console.log("Error sending Email:", error.message);
+    res.status(500).json({error: "Error sending Email"})
+  }
+}
+
+module.exports = { createAssessment, getAllAssessments, getAssessmentByLink, getAllUserAssessments, updateAssessment, deleteAssessment, inviteCandidate };

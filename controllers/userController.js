@@ -109,32 +109,32 @@ const addUser = catchAsyncErrors(async (req, res, next) => {
       is_employee,
     });
 
-    if (!result.id) {
-      throw new Error("User ID is missing or invalid");
-    }
-    console.log(result.id);
+    // if (!result.id) {
+    //   throw new Error("User ID is missing or invalid");
+    // }
+    // console.log(result.id);
 
-    analytics.identify({
-      userId: String(result.id),
-      traits: {
-        email: result.email,
-        firstName: result.first_name,
-        lastName: result.last_name,
-      }
-    });
+    // analytics.identify({
+    //   userId: String(result.id),
+    //   traits: {
+    //     email: result.email,
+    //     firstName: result.first_name,
+    //     lastName: result.last_name,
+    //   }
+    // });
 
-    // Track the signup event in Segment
-    analytics.track({
-      userId: String(result.id),
-      event: 'User Signed Up',
-      properties: {
-        email: result.email,
-        firstName: result.first_name,
-        lastName: result.last_name,
-        signupMethod: 'Website',
-        createdAt: new Date().toISOString(),
-      }
-    });
+    // // Track the signup event in Segment
+    // analytics.track({
+    //   userId: String(result.id),
+    //   event: 'User Signed Up',
+    //   properties: {
+    //     email: result.email,
+    //     firstName: result.first_name,
+    //     lastName: result.last_name,
+    //     signupMethod: 'Website',
+    //     createdAt: new Date().toISOString(),
+    //   }
+    // });
 
     sendToken(result, 201, res);
   } catch (error) {

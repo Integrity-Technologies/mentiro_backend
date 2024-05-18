@@ -1,11 +1,15 @@
 const { Client } = require('pg');
+const dotenv = require('dotenv');
+
+// Load environment variables from the config file
+dotenv.config({ path: './config/config.env' });
 
 const client = new Client({
-  user: 'postgres',
-  host: 'localhost',
-  database: 'mentiro',
-  password: 'admin',
-  port: 5432, // Default PostgreSQL port
+  user: process.env.PG_USER,
+  host: process.env.PG_HOST,
+  database: process.env.PG_DATABASE,
+  password: process.env.PG_PASSWORD,
+  port: process.env.PG_PORT, // Default PostgreSQL port
 });
 
 async function connect() {

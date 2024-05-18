@@ -14,7 +14,7 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 
 const app = express();
-const port = 5000;
+// const port = 5000;
 
 dotenv.config({path:"./config/config.env"});
 
@@ -40,8 +40,8 @@ app.use("/api/candidate", candidateRoutes);
 app.use('/api/answers', answerRoutes);
 app.use("/api/result", resultRoutes);
 
-const server = app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+const server = app.listen(process.env.PORT, () => {
+  console.log(`Server is running on http://localhost:${process.env.PORT}`);
 });
 
 // unhandled Promise Rejection

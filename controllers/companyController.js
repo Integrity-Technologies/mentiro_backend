@@ -97,7 +97,7 @@ const createCompany = catchAsyncErrors(async (req, res, next) => {
         const newCompany = await saveCompany(companyData);
 
         analytics.identify({
-          userId: String(newCompany.id),
+          userId: String(userId),
           traits: {
             name: newCompany.name,
             website: newCompany.website,

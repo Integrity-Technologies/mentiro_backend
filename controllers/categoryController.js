@@ -1,12 +1,23 @@
 //categoryController.js
 const { createCategoryTable, saveCategory } = require("../models/category.js");
 const { client } = require("../db/index.js");
+const analytics = require('../segment/segmentConfig');
 const catchAsyncErrors = require("../middleware/catchAsyncErrors.js");
 
 const getAllCategory = catchAsyncErrors(async (req, res, next) => {
   try {
     await createCategoryTable();
     const category = await client.query('SELECT * FROM "categories"');
+
+    analytics.track({
+      userId: String(req.user.id),
+      event: 'Admin Viewed All Categories',
+      properties: {
+        viewedAt: new Date().toISOString(),
+        categoryCount: category.rows.length,
+      }
+    });
+
     res.status(200).json(category.rows);
   } catch (error) {
     console.error("Error fetching category:", error);
@@ -41,6 +52,26 @@ const categoryData = {
 // Save the company data in the database
 const newCategory = await saveCategory(categoryData);
 
+analytics.identify({
+  userId: String(req.user.id),
+  traits: {
+    name: newCategory.category_name,
+    createdBy: newCategory.created_by,
+    isActive: newCategory.is_active,
+  }
+});
+
+analytics.track({
+  userId: String(req.user.id),
+  event: 'Category Created',
+  properties: {
+    categoryName: newCategory.category_name,
+    createdBy: newCategory.created_by,
+    isActive: newCategory.is_active,
+    createdAt: new Date().toISOString(),
+  }
+});
+
  // Send a success response with the newly created category data
  res.status(201).json({
   success: true,
@@ -66,6 +97,16 @@ const getCategoryByName = catchAsyncErrors(async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Category not found" });
     }
+
+    analytics.track({
+      userId: String(req.user.id),
+      event: 'Admin Viewed Category Details',
+      properties: {
+        viewedAt: new Date().toISOString(),
+        categoryName: category_name,
+      }
+    });
+
     res.status(200).json(result.rows[0]);
   } catch (error) {
     console.error("Error fetching category:", error);
@@ -97,6 +138,22 @@ const editCategoryById = catchAsyncErrors(async (req, res) => {
       [category_name, categoryId]
     );
 
+    analytics.identify({
+      userId: String(req.user.id),
+      traits: {
+        name: updateCategory.category_name,
+      }
+    });
+
+    analytics.track({
+      userId: String(req.user.id),
+      event: 'Category Edited',
+      properties: {
+        categoryName: updateCategory.category_name,
+        editedAt: new Date().toISOString(),
+      }
+    });
+
     res.status(200).json(updateCategory.rows[0]);
   } catch (error) {
     console.error("Error updating category:", error);
@@ -124,6 +181,14 @@ const deleteCategoryById = catchAsyncErrors(async (req, res) => {
       WHERE id = $1`;
     const deleteValues = [categoryId];
     await client.query(deleteQuery, deleteValues);
+
+    analytics.track({
+      userId: String(req.user.id),
+      event: 'Category Deleted',
+      properties: {
+        deletedAt: new Date().toISOString(),
+      }
+    });
 
     // Send a success message
     res.status(200).json({ message: "Category deleted successfully" });

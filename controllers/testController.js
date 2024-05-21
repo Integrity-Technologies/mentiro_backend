@@ -1,6 +1,7 @@
 // controllers/testController.js
 const { createTestsTable, saveTest } = require("../models/test");
 const { client } = require("../db/index.js");
+const analytics = require('../segment/segmentConfig');
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 
 // Get all tests
@@ -40,6 +41,15 @@ const getAllTests = catchAsyncErrors(async (req, res, next) => {
       company: companiesMap.get(test.company_id),
       categories: test.categories.filter(Boolean).map(categoryId => categoriesMap.get(categoryId))
     }));
+
+    analytics.track({
+      userId: String(req.user.id),
+      event: 'Viewed All Test',
+      properties: {
+        viewedAt: new Date().toISOString(),
+        testCount: testsWithNames.rows.length,
+      }
+    });
 
     res.status(200).json(testsWithNames); // Return all test data with names in the response
   } catch (error) {
@@ -153,6 +163,33 @@ const deleteTestById = async (testId) => {
       // Save the test data in the database
       // Implement the saveTest function here
       const newTest = await saveTest(testData);
+
+      analytics.identify({
+        userId: String(userId),
+        traits: {
+          test_name: newTest.test_name,
+          createdBy: newTest.created_by,
+          company_id: newTest.company_id,
+          category_ids: newTest.categories
+        }
+      });
+      
+
+      analytics.track({
+        userId: userId.toString(),
+        event: 'Test Created',
+        properties: {
+          test_name: newTest.test_name,
+          test_description: newTest.test_description,
+          category_names: category_names,
+          company_name: company_name,
+          createdBy: userId,
+          isActive: newTest.is_active,
+          createdAt: new Date().toISOString(),
+        }
+      });
+  
+
       // Send a success response with the newly created test data
       res.status(201).json({
         success: true,
@@ -178,6 +215,15 @@ const getTestById = catchAsyncErrors(async (req, res, next) => {
     if (test.rows.length === 0) {
       return res.status(404).json({ error: "Test not found" });
     }
+
+    analytics.track({
+      userId: String(req.user.id),
+      event: 'Viewed Test',
+      properties: {
+        testId: testId,
+        viewedAt: new Date().toISOString(),
+      }
+    });
 
     // Send the test data in the response
     res.status(200).json(test.rows[0]);
@@ -234,6 +280,29 @@ const editTest = catchAsyncErrors(async (req, res, next) => {
 
     await updateTestById(testId, updatedTest);
 
+    // Identify the updated test in Segment
+    analytics.identify({
+      userId: String(req.user.id),
+      traits: {
+        testId: String(testId),
+        test_name: updatedTest.test_name,
+        test_description: updatedTest.test_description,
+        company_id: updatedTest.company_id,
+        category_ids: updatedTest.categories
+      }
+    });
+
+    // Track the event of editing a test
+    analytics.track({
+      userId: String(req.user.id),
+      event: 'Test Edited',
+      properties: {
+        testId: testId,
+        updatedTest: updatedTest,
+        updatedAt: new Date().toISOString(),
+      }
+    });
+
     // Send a success response with the updated test data
     res.status(200).json({
       success: true,
@@ -260,6 +329,15 @@ const deleteTest = catchAsyncErrors(async (req, res, next) => {
 
     // Delete the test data from the database
     await deleteTestById(testId);
+
+    analytics.track({
+      userId: String(req.user.id),
+      event: 'Test Deleted',
+      properties: {
+        testId: testId,
+        deletedAt: new Date().toISOString(),
+      }
+    });
 
     // Send a success response
     res.status(200).json({

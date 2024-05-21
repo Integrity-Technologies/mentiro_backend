@@ -1,5 +1,6 @@
 // controllers/answerController.js
 const {getAnswerByQuestionId} = require("../models/answer");
+const analytics = require('../segment/segmentConfig');
 const { client } = require("../db/index.js");
 
 // function to verify the answer
@@ -37,6 +38,14 @@ const getAllAnswers = async (req, res, next) => {
   try {
     // Fetch all answers from the database
     const answers = await client.query('SELECT * FROM "answers"');
+
+    analytics.track({
+      // userId: req.user.id.toString(),  // we have to test that user id is still access in this function while calling from another controller
+      event: 'Answers Fetched',
+      properties: {
+        question_count: answers.length,
+      }
+    });
 
     res.status(200).json(answers.rows); // Return all user data in the response
   } catch (error) {

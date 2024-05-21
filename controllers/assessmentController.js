@@ -1,5 +1,6 @@
 const { createAssessmentsTable, saveAssessment } = require("../models/assessment");
 const { client } = require("../db/index.js");
+const analytics = require('../segment/segmentConfig');
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const { sendEmail } = require("../utils/sendEmail.js");
 
@@ -135,6 +136,19 @@ const getAssessmentByLink = catchAsyncErrors(async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Assessment not found" });
     }
+
+    // Track the get assessment by link event in Segment
+    analytics.track({
+      userId: String(req.user.id),
+      event: 'Get Assessment By Link',
+      properties: {
+        uniqueLink,
+        assessmentId: result.rows[0].id,
+        assessment: result.rows[0],
+        fetched_at: new Date().toISOString(),
+      }
+    });
+
     res.status(200).json(result.rows[0]);
   } catch (error) {
     console.error("Error fetching Assessment:", error);
@@ -177,6 +191,40 @@ const createAssessment = async (req, res, next) => {
     };
 
     const assessment = await saveAssessment(assessmentData);
+
+    analytics.identify({
+      userId: String(req.user.id),
+      traits: {
+        assessmentId: assessment.id,
+        assessment_name: assessment.assessment_name,
+        createdBy: assessment.created_by,
+        company_id: assessment.company_id,
+      }
+    });
+
+    // Identify the user who created the assessment in Segment
+    analytics.identify({
+      userId: String(req.user.id),
+      traits: {
+        name: req.user.name,
+        email: req.user.email,
+      }
+    });
+
+    // Track the assessment creation event in Segment
+    analytics.track({
+      userId: String(req.user.id),
+      event: 'Assessment Created',
+      properties: {
+        assessmentId: assessment.id,
+        assessment_name: assessment.assessment_name,
+        company_id: assessment.company_id,
+        tests: assessment.tests,
+        shareableLink: assessment.shareableLink,
+        created_at: new Date().toISOString(),
+      }
+    });
+
     res.status(201).json({ assessment });
   } catch (error) {
     console.error("Error creating Assessment:", error.message);
@@ -189,6 +237,17 @@ const createAssessment = async (req, res, next) => {
 const getAllAssessments = catchAsyncErrors(async (req, res, next) => {
   try {
     const assessments = await client.query('SELECT * FROM assessments');
+
+    // Track the get all assessments event in Segment
+    analytics.track({
+      userId: String(req.user.id),
+      event: 'Get All Assessments',
+      properties: {
+        viewedAt: new Date().toISOString(),
+        assessmentsCount: assessments.rows.length,
+      }
+    });
+
     res.status(200).json({ assessments: assessments.rows });
   } catch (error) {
     console.error("Error fetching assessments:", error.message);
@@ -201,6 +260,18 @@ const getAllUserAssessments = catchAsyncErrors(async (req, res, next) => {
   try {
     const userId = req.user.id;
     const userAssessments = await client.query('SELECT * FROM assessments WHERE created_by = $1', [userId]);
+
+    // Track the get all user assessments event in Segment
+    analytics.track({
+      userId: String(req.user.id),
+      event: 'Get All User Assessments',
+      properties: {
+        userId,
+        viewedAt: new Date().toISOString(),
+        assessmentCount: userAssessments.rows.length,
+      }
+    });
+
     res.status(200).json({ assessments: userAssessments.rows });
   } catch (error) {
     console.error("Error fetching user's assessments:", error.message);
@@ -231,7 +302,36 @@ const updateAssessment = catchAsyncErrors(async (req, res, next) => {
           SET assessment_name = $1, company_id = $2, tests = $3
           WHERE id = $4`;
     const values = [assessment_name, companyId, testIds, id];
-    await client.query(query, values);
+    const updateAssessment = await client.query(query, values);
+
+    // Identify the user who updated the assessment in Segment
+    analytics.identify({
+      userId: String(req.user.id),
+      traits: {
+        name: req.user.name,
+        email: req.user.email,
+      }
+    });
+
+    analytics.identify({
+      userId: String(req.user.id),
+      traits: {
+        name: updateAssessment.assessment_name,
+      }
+    });
+
+    // Track the assessment update event in Segment
+    analytics.track({
+      userId: String(req.user.id),
+      event: 'Assessment Updated',
+      properties: {
+        assessmentId: id,
+        assessment_name,
+        company_id: companyId,
+        tests: testIds,
+        updated_at: new Date().toISOString(),
+      }
+    });
 
     res.status(200).json({ message: 'Assessment updated successfully' });
   } catch (error) {
@@ -249,6 +349,16 @@ const deleteAssessment = catchAsyncErrors(async (req, res, next) => {
     const query = 'DELETE FROM assessments WHERE id = $1';
     const values = [id];
     await client.query(query, values);
+
+    // Track the assessment deletion event in Segment
+    analytics.track({
+      userId: String(req.user.id),
+      event: 'Assessment Deleted',
+      properties: {
+        assessmentId: id,
+        deleted_at: new Date().toISOString(),
+      }
+    });
 
     res.status(200).json({ message: 'Assessment deleted successfully' });
   } catch (error) {
@@ -286,6 +396,21 @@ const inviteCandidate = async(req,res) => {
       subject: `mentiro Assessment Invitation`,
       message,
     });
+
+     // Track the candidate invitation event in Segment
+     analytics.track({
+      userId: String(req.user.id),
+      event: 'Candidate Invited',
+      properties: {
+        assessmentId,
+        candidateEmail,
+        firstName,
+        lastName,
+        shareableLink,
+        invited_at: new Date().toISOString(),
+      }
+    });
+
     res.status(200).json({ success: true, message: "Email sent successfully" });
   } catch (error) {
     console.log("Error sending Email:", error.message);

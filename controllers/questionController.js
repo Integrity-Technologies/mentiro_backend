@@ -1,5 +1,6 @@
 const { saveQuestion, createQuestionTable } = require('../models/question');
 const { saveAnswer, createAnswersTable } = require('../models/answer');
+const analytics = require('../segment/segmentConfig');
 const { client } = require('../db/index');
 
 // Function to find category IDs by names
@@ -71,6 +72,17 @@ const createQuestionAndAnswer = async (req, res) => {
       created_by: req.user.id, // Assuming user ID is extracted from authentication middleware
     };
 
+    analytics.track({
+      userId: req.user.id.toString(),
+      event: 'Question Created',
+      properties: {
+        question_id: questionId,
+        question_text,
+        difficulty_level,
+        categories: category_names,
+      }
+    });
+
     // Save answer
     const answer = await saveAnswer(answerData);
 
@@ -111,6 +123,13 @@ const getAllQuestion = async (req, res) => {
       categories: question.categories.filter(Boolean).map(categoryId => categoriesMap.get(categoryId))
     }));
 
+    analytics.track({
+      userId: req.user.id.toString(),
+      event: 'Questions Fetched',
+      properties: {
+        question_count: QuestionsWithNames.length,
+      }
+    });
 
     res.status(200).json(QuestionsWithNames);
       // res.status(200).json(questions);
@@ -158,6 +177,16 @@ const deleteQuestion = async (req, res) => {
     await client.query('COMMIT'); // Commit transaction if successful
 
     const deletedQuestion = result.rows[0];
+
+    analytics.track({
+      userId: req.user.id.toString(),
+      event: 'Question Deleted',
+      properties: {
+        question_id: id,
+        question_text: deletedQuestion.question_text,
+      }
+    });
+
     res.status(200).json({ message: "Question deleted successfully", deletedQuestion });
   } catch (error) {
     console.error("Error deleting question:", error);
@@ -183,10 +212,6 @@ const deleteQuestion = async (req, res) => {
   if (questionID.rows.length === 0) {
     return res.status(404).json({ error: "Question not found" });
   }
-
-    // if (!existingQuestion) {
-    //   return res.status(404).json({ error: "Question not found" });
-    // }
 
     // Find category IDs for the updated category names
     const updatedCategoryIds = await findCategoryIdsByName(category_names);
@@ -219,6 +244,27 @@ const deleteQuestion = async (req, res) => {
     }
 
     const updatedQuestion = result.rows[0];
+
+    analytics.identify({
+      userId: req.user.id.toString(),
+      traits: {
+        updated_question_id: updatedQuestion.id,
+        updated_question_text: updatedQuestion.question_text,
+      }
+    });
+
+    analytics.track({
+      userId: req.user.id.toString(),
+      event: 'Question Updated',
+      properties: {
+        question_id: updatedQuestion.id,
+        question_text,
+        difficulty_level,
+        categories: category_names,
+        updated_by:id
+      }
+    });
+
     res.status(200).json(updatedQuestion);
   } catch (error) {
     console.error("Error updating question:", error);
@@ -243,44 +289,54 @@ const deleteQuestion = async (req, res) => {
 
     // return result.rows[0]; // Return the question object
     const question = result.rows[0];
-    res.status(200).json(question);
 
+    analytics.track({
+      userId: req.user.id.toString(),
+      event: 'Question Fetched by ID',
+      properties: {
+        question_id: question.id,
+        question_text: question.question_text,
+        Fetched_by:id
+      }
+    });
+
+    res.status(200).json(question);
   } catch (error) {
     console.error("Error fetching question by ID:", error);
     res.status(500).json({ error: "Could not fetch question by ID" });
   }
 };
 
-const getAllQuestionByCategoryandDifficultyLevel = async (req, res) => {
-  try {
-    // Parse category names and difficulty levels from request body
-    const  categories  = req.body;
-    console.log(categories);
-    // Initialize an array to store results
-    const response = [];
+// const getAllQuestionByCategoryandDifficultyLevel = async (req, res) => {
+//   try {
+//     // Parse category names and difficulty levels from request body
+//     const  categories  = req.body;
+//     console.log(categories);
+//     // Initialize an array to store results
+//     const response = [];
 
-    // Loop through each category
-    for (const category of categories) {
-      // Query the database to fetch questions based on category and difficulty level
-      const query = `
-        SELECT * FROM questions
-        WHERE category_name = $1 AND difficulty_level = $2;
-      `;
-      const values = [category.category_name, category.difficulty_level];
-      const result = await client.query(query, values);
+//     // Loop through each category
+//     for (const category of categories) {
+//       // Query the database to fetch questions based on category and difficulty level
+//       const query = `
+//         SELECT * FROM questions
+//         WHERE category_name = $1 AND difficulty_level = $2;
+//       `;
+//       const values = [category.category_name, category.difficulty_level];
+//       const result = await client.query(query, values);
 
-      // Push category along with questions to response array
-      response.push({
-        category_name: category.category_name,
-        questions: result.rows
-      });
-    }
+//       // Push category along with questions to response array
+//       response.push({
+//         category_name: category.category_name,
+//         questions: result.rows
+//       });
+//     }
 
-    res.status(200).json(response);
-  } catch (error) {
-    console.error("Error fetching questions:", error);
-    res.status(500).json({ error: "Could not fetch questions" });
-  }
-};
+//     res.status(200).json(response);
+//   } catch (error) {
+//     console.error("Error fetching questions:", error);
+//     res.status(500).json({ error: "Could not fetch questions" });
+//   }
+// };
 
-module.exports = { createQuestionAndAnswer, getAllQuestion, deleteQuestion, updateQuestion,getQuestionById, getAllQuestionByCategoryandDifficultyLevel };
+module.exports = { createQuestionAndAnswer, getAllQuestion, deleteQuestion, updateQuestion,getQuestionById };

@@ -1,5 +1,6 @@
 const { createCompanyTable, saveCompany } = require("../models/company");
 const { client } = require("../db/index.js");
+const analytics = require('../segment/segmentConfig');
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 
 // Get all company
@@ -17,6 +18,15 @@ const getAllCompany = catchAsyncErrors(async (req, res, next) => {
     if (companyResult.rows.length === 0) {
       return res.status(400).json({ error: "No companies found" });
     }
+
+    analytics.track({
+      userId: String(req.user.id),
+      event: 'Admin Viewed All Companies',
+      properties: {
+        viewedAt: new Date().toISOString(),
+        companyCount: companyResult.rows.length,
+      }
+    });
 
     res.status(200).json(companyResult.rows); // Return all company data in the response
   } catch (error) {
@@ -37,6 +47,15 @@ const getAllCompaniesOfUser = catchAsyncErrors(async (req, res, next) => {
 
         // Fetch all companies associated with the user from the database
         const userCompanies = await client.query('SELECT * FROM companies WHERE created_by = $1', [userId]);
+
+        analytics.track({
+          userId: String(userId),
+          event: 'User Viewed Their Companies',
+          properties: {
+            viewedAt: new Date().toISOString(),
+            companyCount: userCompanies.rows.length,
+          }
+        });
 
         // Return the list of user's companies in the response
         res.status(200).json(userCompanies.rows);
@@ -76,6 +95,29 @@ const createCompany = catchAsyncErrors(async (req, res, next) => {
 
         // Save the company data in the database
         const newCompany = await saveCompany(companyData);
+
+        analytics.identify({
+          userId: String(newCompany.id),
+          traits: {
+            name: newCompany.name,
+            website: newCompany.website,
+            createdBy: newCompany.created_by,
+            isActive: newCompany.is_active,
+            stripeCustomerId: newCompany.stripe_customer_id, 
+            planId: newCompany.plan_id,
+          }
+        });
+    
+        analytics.track({
+          userId: String(userId),
+          event: 'Company Created',
+          properties: {
+            companyName: newCompany.name,
+            createdBy: newCompany.created_by,
+            isActive: newCompany.is_active,
+            createdAt: new Date().toISOString(),
+          }
+        });
 
         // Send a success response with the newly created company data
         res.status(201).json({
@@ -120,9 +162,9 @@ const updateCompany = catchAsyncErrors(async (req, res, next) => {
       const updatedCompanyData = {
         name,
         website: website || existingCompany.rows[0].website, // Use existing website if not provided in the request body
-        isActive: isActive || existingCompany.rows[0].isActive, // Use existing isActive value if not provided in the request body
-        stripeCustomerId: stripeCustomerId || existingCompany.rows[0].stripeCustomerId, // Use existing stripeCustomerId if not provided in the request body
-        planId: planId || existingCompany.rows[0].planId // Use existing planId if not provided in the request body
+        isActive: isActive || existingCompany.rows[0].is_active, // Use existing isActive value if not provided in the request body
+        stripeCustomerId: stripeCustomerId || existingCompany.rows[0].stripe_customer_id, // Use existing stripeCustomerId if not provided in the request body
+        planId: planId || existingCompany.rows[0].plan_id // Use existing planId if not provided in the request body
       };
   
       // Update the company data in the database
@@ -130,6 +172,26 @@ const updateCompany = catchAsyncErrors(async (req, res, next) => {
         'UPDATE companies SET name = $1, website = $2, is_active = $3, stripe_customer_id = $4, plan_id = $5 WHERE id = $6',
         [updatedCompanyData.name, updatedCompanyData.website, updatedCompanyData.isActive, updatedCompanyData.stripeCustomerId, updatedCompanyData.planId, companyId]
       );
+
+      analytics.identify({
+        userId: String(companyId),
+        traits: {
+          name: updatedCompanyData.name,
+          website: updatedCompanyData.website,
+          isActive: updatedCompanyData.isActive,
+          stripeCustomerId: updatedCompanyData.stripeCustomerId,
+          planId: updatedCompanyData.planId,
+        }
+      });
+  
+      analytics.track({
+        userId: String(companyId),
+        event: 'Company Updated',
+        properties: {
+          companyName: updatedCompanyData.name,
+          updatedAt: new Date().toISOString(),
+        }
+      });
   
       // Send a success response
       res.status(200).json({ success: true, message: "Company updated successfully" });
@@ -169,6 +231,14 @@ const deleteCompany = catchAsyncErrors(async (req, res, next) => {
       // Commit the transaction
       await client.query('COMMIT');
   
+      analytics.track({
+        userId: String(companyId),
+        event: 'Company Deleted',
+        properties: {
+          deletedAt: new Date().toISOString(),
+        }
+      });
+
       // Send a success response
       res.status(200).json({ success: true, message: "Company deleted successfully" });
     } catch (error) {

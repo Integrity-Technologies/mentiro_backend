@@ -24,14 +24,15 @@
 const express = require('express');
 const router = express.Router();
 const {submitAnswer,createResult, getAllResults} = require('../controllers/resultController');
+const {verifyTokenAndExtractUserId} = require("../middleware/verifyToken");
 
 // Route to submit answer
-router.post('/submit', submitAnswer);
+router.post('/submit', verifyTokenAndExtractUserId, submitAnswer);
 
 // Route to create result
-router.post('/create', createResult);
+router.post('/create', verifyTokenAndExtractUserId, createResult);
 
 // Route to get all results
-router.get("/allResults",getAllResults);
+router.get("/allResults",verifyTokenAndExtractUserId, getAllResults);
 
 module.exports = router;

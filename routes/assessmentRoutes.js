@@ -16,7 +16,7 @@ const {verifyTokenAndExtractUserId} = require("../middleware/verifyToken");
 router.post('/create/assessment', verifyTokenAndExtractUserId, createAssessment); // tested in postman successfully
 
 // Get all assessments
-router.get('/assessments', getAllAssessments); // tested in postman successfully
+router.get('/assessments',verifyTokenAndExtractUserId, getAllAssessments); // tested in postman successfully
 
 // Get all user assessments
 router.get('/my/assessments', verifyTokenAndExtractUserId, getAllUserAssessments); // tested in postman successfully

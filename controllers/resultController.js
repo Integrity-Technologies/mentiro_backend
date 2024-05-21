@@ -1,5 +1,6 @@
 // controllers/resultController.js
 const {createResultsTable,saveResult,getResultById,updateResult} = require("../models/result");
+const analytics = require('../segment/segmentConfig');
 const answerController = require("../controllers/answerController");
 const { client } = require("../db/index.js");
 
@@ -76,6 +77,19 @@ const submitAnswer = async (req, res) => {
 
     // Update the result in the database with the score including percentage sign
     await updateResult(resultId, result.questions, parseInt(scorePercentage.toFixed(2)));
+
+    // Track the answer submission event in Segment
+    analytics.track({
+      userId: String(req.user.id),
+      event: 'Answer Submitted',
+      properties: {
+        resultId,
+        question_id,
+        is_correct: answer.is_correct,
+        scorePercentage: scorePercentage.toFixed(2),
+        submitted_at: new Date().toISOString(),
+      }
+    });
 
     // Respond with success message
     res.status(200).json({ message: "Answer submitted successfully" });
@@ -166,6 +180,30 @@ const createResult = async (req, res) => {
     // Save the result to the database
     const result = await saveResult(resultData);
 
+     // Identify the user in Segment
+     analytics.identify({
+      userId: String(req.user.id),
+      traits: {
+        candidate_id: candidateId,
+        test_id: testId,
+        assessment_id: assessmentId,
+        created_at: new Date().toISOString(),
+      }
+    });
+
+    // Track the result creation event in Segment
+    analytics.track({
+      userId: String(req.user.id),
+      event: 'Result Created',
+      properties: {
+        resultId: result.id,
+        candidate_id: candidateId,
+        test_id: testId,
+        assessment_id: assessmentId,
+        created_at: new Date().toISOString(),
+      }
+    });
+
     // Respond with success message
     res.status(201).json({ result });
   } catch (error) {
@@ -247,6 +285,16 @@ const getAllResults = async (req, res) => {
     }, {});
 
     const resultsWithNames = Object.values(resultsByCandidate);
+
+    // Track the get all results event in Segment
+    analytics.track({
+      userId: String(req.user.id),
+      event: 'Get All Results',
+      properties: {
+        count: results.rows.length,
+        fetched_at: new Date().toISOString(),
+      }
+    });
 
     res.status(200).json(resultsWithNames);
   } catch (error) {

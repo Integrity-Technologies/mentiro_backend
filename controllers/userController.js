@@ -53,7 +53,6 @@ const signup = catchAsyncErrors(async (req, res, next) => {
         email: result.email,
         firstName: result.first_name,
         lastName: result.last_name,
-        // Add any other traits you want to track
       }
     });
 
@@ -68,7 +67,6 @@ const signup = catchAsyncErrors(async (req, res, next) => {
         lastName: result.last_name, // Last name of the user who signed up
         signupMethod: 'Website', // Indicates the method used for signup
         createdAt: new Date().toISOString(), // Timestamp of when the signup event occurred
-        // Add any other relevant properties you want to track
       }
     });
 
@@ -109,32 +107,32 @@ const addUser = catchAsyncErrors(async (req, res, next) => {
       is_employee,
     });
 
-    // if (!result.id) {
-    //   throw new Error("User ID is missing or invalid");
-    // }
-    // console.log(result.id);
+    if (!result.id) {
+      throw new Error("User ID is missing or invalid");
+    }
+    console.log(result.id);
 
-    // analytics.identify({
-    //   userId: String(result.id),
-    //   traits: {
-    //     email: result.email,
-    //     firstName: result.first_name,
-    //     lastName: result.last_name,
-    //   }
-    // });
+    analytics.identify({
+      userId: String(result.id),
+      traits: {
+        email: result.email,
+        firstName: result.first_name,
+        lastName: result.last_name,
+      }
+    });
 
     // // Track the signup event in Segment
-    // analytics.track({
-    //   userId: String(result.id),
-    //   event: 'User Signed Up',
-    //   properties: {
-    //     email: result.email,
-    //     firstName: result.first_name,
-    //     lastName: result.last_name,
-    //     signupMethod: 'Website',
-    //     createdAt: new Date().toISOString(),
-    //   }
-    // });
+    analytics.track({
+      userId: String(result.id),
+      event: 'User Added',
+      properties: {
+        email: result.email,
+        firstName: result.first_name,
+        lastName: result.last_name,
+        signupMethod: 'Website',
+        createdAt: new Date().toISOString(),
+      }
+    });
 
     sendToken(result, 201, res);
   } catch (error) {
@@ -164,6 +162,27 @@ const login = catchAsyncErrors(async (req, res, next) => {
       return res.status(400).json({ error: "Invalid password" });
     }
 
+    // Identify the user in Segment
+    analytics.identify({
+      userId: String(user.id),
+      traits: {
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+      }
+    });
+
+    // Track the login event in Segment
+    analytics.track({
+      userId: String(user.id),
+      event: 'User Logged In',
+      properties: {
+        email: user.email,
+        loginMethod: 'Website',
+        loginAt: new Date().toISOString(),
+      }
+    });
+
     // Login successful, generate and send token
     sendToken(user, 200, res); // Status code changed to 200 for successful login
   } catch (error) {
@@ -179,6 +198,15 @@ const logout = catchAsyncErrors(async (req, res, next) => {
     httpOnly: true,
   });
 
+  // Track the logout event in Segment
+  analytics.track({
+    userId: String(userId),
+    event: 'User Logged Out',
+    properties: {
+      logoutAt: new Date().toISOString(),
+    }
+  });
+
   res.status(200).json({
     success: true,
     message: "Logged Out",
@@ -190,6 +218,16 @@ const getAllUsers = catchAsyncErrors(async (req, res, next) => {
   try {
     // Fetch all users from the database
     const users = await client.query('SELECT * FROM "users"');
+
+    // Track the event of viewing all users if necessary
+    analytics.track({
+      userId: String(req.user.id), // Assumes req.user contains admin's user id
+      event: 'Admin Viewed All Users',
+      properties: {
+        viewedAt: new Date().toISOString(),
+        userCount: users.rows.length,
+      }
+    });
 
     res.status(200).json(users.rows); // Return all user data in the response
   } catch (error) {
@@ -230,6 +268,18 @@ const forgotPassword = catchAsyncErrors(async (req, res, next) => {
       subject: `mentiro Password Recovery`,
       message,
     });
+
+    // Track the password reset request event in Segment
+    analytics.track({
+      userId: String(user.id),
+      event: 'Password Reset Requested',
+      properties: {
+        email: user.email,
+        resetRequestedAt: new Date().toISOString(),
+        resetToken: resetToken,
+      }
+    });
+
     res.status(200).json({ message: "Password reset link sent successfully!" });
   } catch (error) {
     // Set reset token and expiry to null if email sending fails
@@ -269,6 +319,14 @@ const resetPassword = catchAsyncErrors(async (req, res, next) => {
     await client.query('UPDATE "users" SET password = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2',
       [hashedPassword, userToUpdate.id]);
 
+      analytics.track({
+        userId: String(userToUpdate.id),
+        event: 'Password Reset',
+        properties: {
+          resetAt: new Date().toISOString(),
+        }
+      });
+
     res.status(200).json({ message: "Password reset successfully!" });
   } catch (error) {
     console.error("Error resetting password:", error);
@@ -287,6 +345,16 @@ const getUserDetails = catchAsyncErrors(async (req, res, next) => {
     }
 
     const user = existingUser.rows[0]; // Get the user data
+
+    analytics.identify({
+      userId: String(user.id),
+      traits: {
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        phone: user.phone,
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -338,6 +406,28 @@ const editUser = catchAsyncErrors(async (req, res, next) => {
     }
     await client.query(updateQuery, values);
 
+    analytics.identify({
+      userId: String(userId),
+      traits: {
+        email: email,
+        firstName: first_name,
+        lastName: last_name,
+        phone: phone,
+      }
+    });
+
+    analytics.track({
+      userId: String(userId),
+      event: 'User Details Edited',
+      properties: {
+        editedAt: new Date().toISOString(),
+        email: email,
+        firstName: first_name,
+        lastName: last_name,
+        phone: phone,
+      }
+    });
+
     res
       .status(200)
       .json({ success: true, message: "User details updated successfully" });
@@ -370,6 +460,14 @@ const deleteUser = catchAsyncErrors(async (req, res, next) => {
     // Add similar DELETE statements for other dependent tables
     await client.query('DELETE FROM "users" WHERE id = $1', [userId]);
     await client.query('COMMIT'); // Commit transaction if successful
+
+    analytics.track({
+      userId: String(userId),
+      event: 'User Deleted',
+      properties: {
+        deletedAt: new Date().toISOString(),
+      }
+    });
 
     res.status(200).json({ success: true, message: "User deleted successfully" });
   } catch (error) {

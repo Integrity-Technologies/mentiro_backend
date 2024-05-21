@@ -32,6 +32,11 @@ const saveCandidate = async (candidateData) => {
     is_active,
   } = candidateData;
   try {
+
+    if (!first_name || !last_name || !email) {
+      return res.status(400).json({ error: 'Invalid request data. Missing required fields.' });
+    }
+
     // Check if a candidate with the same email already exists
     const existingCandidate = await client.query(
       'SELECT * FROM candidates WHERE email = $1',

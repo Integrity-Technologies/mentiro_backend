@@ -14,7 +14,6 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 
 const app = express();
-// const port = 5000;
 
 dotenv.config({path:"./config/config.env"});
 

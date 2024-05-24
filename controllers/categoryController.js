@@ -9,14 +9,14 @@ const getAllCategory = catchAsyncErrors(async (req, res, next) => {
     await createCategoryTable();
     const category = await client.query('SELECT * FROM "categories"');
 
-    analytics.track({
-      userId: String(req.user.id),
-      event: 'Admin Viewed All Categories',
-      properties: {
-        viewedAt: new Date().toISOString(),
-        categoryCount: category.rows.length,
-      }
-    });
+    // analytics.track({
+    //   // userId: String(req.user.id),
+    //   event: 'Admin Viewed All Categories',
+    //   properties: {
+    //     viewedAt: new Date().toISOString(),
+    //     categoryCount: category.rows.length,
+    //   }
+    // });
 
     res.status(200).json(category.rows);
   } catch (error) {

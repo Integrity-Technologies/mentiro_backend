@@ -8,6 +8,9 @@ CREATE TABLE IF NOT EXISTS assessments (
     assessment_name VARCHAR(100),
     company_id INTEGER,
     tests JSONB[],
+    job_role_id INTEGER REFERENCES job_roles(id),
+    work_arrangement_id INTEGER REFERENCES work_arrangements(id),
+    job_location_id INTEGER REFERENCES job_locations(id),
     assessment_time INTEGER,
     shareableLink VARCHAR(255),
     uniquelink VARCHAR(255),
@@ -95,7 +98,10 @@ const saveAssessment = async (assessmentData) => {
     shareableLink,
     uniquelink,
     created_by,
-    assessment_time
+    assessment_time,
+    job_role_id,
+    work_arrangement_id,
+    job_location_id
   } = assessmentData;
   try {
     console.log(created_by + " in assessment model");
@@ -128,9 +134,12 @@ const saveAssessment = async (assessmentData) => {
         shareableLink,
         uniquelink,
         created_by,
-        assessment_time
+        assessment_time,
+        job_role_id,
+        work_arrangement_id,
+        job_location_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *;
     `;
     const values = [
@@ -140,7 +149,10 @@ const saveAssessment = async (assessmentData) => {
       shareableLink,
       uniquelink,
       created_by,
-      assessment_time
+      assessment_time,
+      job_role_id,
+      work_arrangement_id,
+      job_location_id
     ];
     const result = await client.query(insertQuery, values);
     console.log("Assessment data saved successfully");

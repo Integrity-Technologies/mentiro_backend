@@ -47,7 +47,7 @@ const getAllTests = catchAsyncErrors(async (req, res, next) => {
       event: 'Viewed All Test',
       properties: {
         viewedAt: new Date().toISOString(),
-        testCount: testsWithNames.rows.length,
+        // testCount: testsWithNames.rows.length,
       }
     });
 

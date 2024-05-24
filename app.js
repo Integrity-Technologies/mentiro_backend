@@ -8,6 +8,9 @@ const assessmentRoutes = require("./routes/assessmentRoutes");
 const candidateRoutes = require("./routes/candidateRoutes");
 const resultRoutes = require("./routes/resultRoutes");
 const answerRoutes = require('./routes/answerRoutes');
+const workArrangementRoutes = require('./routes/workArrangement');
+const jobLocationRoutes = require('./routes/jobLocation');
+const jobRoleRoutes = require('./routes/jobRole');
 const cors = require("cors");
 const dotenv = require("dotenv");
 const cookieParser = require('cookie-parser');
@@ -38,6 +41,9 @@ app.use("/api/Assessments",assessmentRoutes);
 app.use("/api/candidate", candidateRoutes);
 app.use('/api/answers', answerRoutes);
 app.use("/api/result", resultRoutes);
+app.use("/api/workArrangement",workArrangementRoutes);
+app.use("/api/jobRole",jobRoleRoutes);
+app.use("/api/jobLocation",jobLocationRoutes);
 
 const server = app.listen(process.env.PORT, () => {
   console.log(`Server is running on http://localhost:${process.env.PORT}`);

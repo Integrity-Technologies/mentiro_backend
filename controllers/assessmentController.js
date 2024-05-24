@@ -157,22 +157,66 @@ const getAssessmentByLink = catchAsyncErrors(async (req, res) => {
 });
 
 
+const findOrCreateJobRole = async (name) => {
+  try {
+    const result = await client.query('SELECT id FROM job_roles WHERE name = $1', [name]);
+    if (result.rowCount > 0) {
+      return result.rows[0].id;
+    } else {
+      const newJobRoleResult = await client.query('INSERT INTO job_roles (name) VALUES ($1) RETURNING id', [name]);
+      return newJobRoleResult.rows[0].id;
+    }
+  } catch (error) {
+    throw error;
+  }
+};
 
+const findWorkArrangementIdByName = async (name) => {
+  try {
+    const result = await client.query('SELECT id FROM work_arrangements WHERE name = $1', [name]);
+    if (result.rowCount > 0) {
+      return result.rows[0].id;
+    } else {
+      throw new Error('Invalid work arrangement');
+    }
+  } catch (error) {
+    throw error;
+  }
+};
+
+const findJobLocationIdByName = async (name) => {
+  try {
+    const result = await client.query('SELECT id FROM job_locations WHERE name = $1', [name]);
+    if (result.rowCount > 0) {
+      return result.rows[0].id;
+    } else {
+      throw new Error('Invalid job location');
+    }
+  } catch (error) {
+    throw error;
+  }
+};
  
 // Create Assessment
 const createAssessment = async (req, res, next) => {
   try {
     await createAssessmentsTable();
 
-    const { assessment_name, company_name, tests } = req.body;
+    const { assessment_name, company_name, tests, job_role, work_arrangement, job_location } = req.body;
 
-    if (!assessment_name || !company_name || !Array.isArray(tests) || tests.length === 0) {
+    if (!assessment_name || !company_name || !Array.isArray(tests) || tests.length === 0 || !job_role || !job_location || !work_arrangement) {
       return res.status(400).json({ error: 'Invalid request data. Missing or incorrect format for tests array.' });
     }
 
     const companyId = await findCompanyIdByName(company_name);
     const processedTests = await findTestIdsByName(tests);
+
     console.log(processedTests);
+
+    const jobRoleId = await findOrCreateJobRole(job_role);
+    const workArrangementId = await findWorkArrangementIdByName(work_arrangement);
+    const jobLocationId = await findJobLocationIdByName(job_location);
+
     // Calculate total time for all tests
     const assessmentTime = processedTests.reduce((totalTime, test) => {
       return totalTime + test.total_time; // Assuming each test has a 'total_time' property
@@ -187,7 +231,10 @@ const createAssessment = async (req, res, next) => {
       uniquelink: (await generateUniqueLink()).link,
       created_by: req.user.id,
       // assessment_time: processedTests.reduce((acc, test) => acc + test.test_difficulty.easy + test.test_difficulty.medium + test.test_difficulty.hard, 0) * QUESTION_TIME_PER_MINUTE,
-      assessment_time:assessmentTime
+      assessment_time:assessmentTime,
+      job_role_id: jobRoleId,
+      work_arrangement_id: workArrangementId,
+      job_location_id: jobLocationId,
     };
 
     const assessment = await saveAssessment(assessmentData);

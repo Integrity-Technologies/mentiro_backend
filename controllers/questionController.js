@@ -290,15 +290,15 @@ const deleteQuestion = async (req, res) => {
     // return result.rows[0]; // Return the question object
     const question = result.rows[0];
 
-    analytics.track({
-      userId: req.user.id.toString(),
-      event: 'Question Fetched by ID',
-      properties: {
-        question_id: question.id,
-        question_text: question.question_text,
-        Fetched_by:id
-      }
-    });
+    // analytics.track({
+    //   userId: req.user.id.toString(),
+    //   event: 'Question Fetched by ID',
+    //   properties: {
+    //     question_id: question.id,
+    //     question_text: question.question_text,
+    //     Fetched_by:id
+    //   }
+    // });
 
     res.status(200).json(question);
   } catch (error) {

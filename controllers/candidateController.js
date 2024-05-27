@@ -9,14 +9,14 @@ const getAllCandidate = catchAsyncErrors(async (req, res) => {
   try {
     const result = await client.query('SELECT * FROM candidates');
 
-    analytics.track({
-      userId: String(req.user.id),
-      event: 'Admin Viewed All Candidates',
-      properties: {
-        viewedAt: new Date().toISOString(),
-        candidateCount: result.rows.length,
-      }
-    });
+    // analytics.track({
+    //   // userId: String(req.user.id),
+    //   event: 'Admin Viewed All Candidates',
+    //   properties: {
+    //     viewedAt: new Date().toISOString(),
+    //     candidateCount: result.rows.length,
+    //   }
+    // });
 
     res.status(200).json(result.rows);
   } catch (error) {

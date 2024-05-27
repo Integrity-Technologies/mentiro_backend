@@ -23,7 +23,7 @@
 // routes/resultRouter.js
 const express = require('express');
 const router = express.Router();
-const {submitAnswer,createResult, getAllResults} = require('../controllers/resultController');
+const {submitAnswer,createResult, getAllResults, getResultsByUser} = require('../controllers/resultController');
 const {verifyTokenAndExtractUserId} = require("../middleware/verifyToken");
 
 // Route to submit answer
@@ -34,5 +34,8 @@ router.post('/create', verifyTokenAndExtractUserId, createResult);
 
 // Route to get all results
 router.get("/allResults",verifyTokenAndExtractUserId, getAllResults);
+
+// Route to get all results with specified candidate Assessments 
+router.get("/user/results", verifyTokenAndExtractUserId, getResultsByUser);
 
 module.exports = router;

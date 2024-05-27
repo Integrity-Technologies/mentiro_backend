@@ -52,7 +52,8 @@ const findCompanyIdByName = async (companyName) => {
         throw new Error(`Test '${test_name}' not found`);
       }
 
-      const testId = testResult.rows[0].id;
+      // const testId = testResult.rows[0].id;
+      const testId = testResult.rows[0].id
       const categories = testResult.rows[0].categories;
 
       // Find questions based on categories
@@ -102,6 +103,7 @@ const findCompanyIdByName = async (companyName) => {
       // Prepare test data object with filtered questions
       const testData = {
         test_name,
+        test_id:testId,
         test_difficulty,
         questions: Object.values(filteredQuestions).flat().map(question => ({
           question_id: question.id,

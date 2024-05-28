@@ -24,6 +24,42 @@ const getAllCandidate = catchAsyncErrors(async (req, res) => {
   }
 });
 
+const getAllUserCandidate = catchAsyncErrors(async (req, res) => {
+  try {
+    const userId = req.user.id; // Assume userId is extracted from the token
+
+    // Fetch assessments created by the user
+    const assessmentsQuery = 'SELECT id FROM "assessments" WHERE created_by = $1';
+    const assessmentsResult = await client.query(assessmentsQuery, [userId]);
+
+    if (assessmentsResult.rows.length === 0) {
+      return res.status(404).json({ error: "No assessments found for this user" });
+    }
+
+    const assessmentIds = assessmentsResult.rows.map(assessment => assessment.id);
+
+    // Fetch results for these assessments
+    const resultsQuery = 'SELECT DISTINCT candidate_id FROM "results" WHERE assessment_id = ANY($1)';
+    const results = await client.query(resultsQuery, [assessmentIds]);
+
+    if (results.rows.length === 0) {
+      return res.status(404).json({ error: "No candidates found for these assessments" });
+    }
+
+    const candidateIds = results.rows.map(result => result.candidate_id);
+
+    // Fetch candidates who have attempted these assessments
+    const candidateQuery = 'SELECT * FROM "candidates" WHERE id = ANY($1)';
+    const candidateResult = await client.query(candidateQuery, [candidateIds]);
+
+    res.status(200).json(candidateResult.rows);
+  } catch (error) {
+    console.error("Error getting candidates:", error.message);
+    res.status(500).json({ message: "Error getting candidates", error: error.message });
+  }
+});
+
+
 const createCandidate = catchAsyncErrors(async (req, res) => {
   try {
     await createCandidateTable();
@@ -196,8 +232,9 @@ const deleteCandidateById = catchAsyncErrors(async (req, res) => {
 
 module.exports = {
   getAllCandidate,
+  getAllUserCandidate,
   createCandidate,
   editCandidateById,
   deleteCandidateById,
-  getCandidateById
+  getCandidateById,
 };

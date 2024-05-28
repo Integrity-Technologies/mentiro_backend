@@ -1,6 +1,7 @@
 const express = require("express");
 const {
   getAllCandidate,
+  getAllUserCandidate,
   createCandidate,
   editCandidateById,
   deleteCandidateById,
@@ -10,7 +11,10 @@ const { verifyTokenAndExtractUserId } = require("../middleware/verifyToken.js");
 const router = express.Router();
 
 // Get all candidates
-router.get("/allCandidate", getAllCandidate); // tested in postman successfully
+router.get("/allCandidate",verifyTokenAndExtractUserId, getAllCandidate); // tested in postman successfully
+
+// Get all candidates who have attempted the assessments created by the logged-in user
+router.get("/user/candidates",verifyTokenAndExtractUserId, getAllUserCandidate );
 
 // Create a new candidate
 router.post("/create", createCandidate); // tested in postman successfully

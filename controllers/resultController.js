@@ -303,6 +303,128 @@ const getAllResults = async (req, res) => {
   }
 };
 
+// this response all the assessment that created by user to candidates object (NOT CORRECT )
+// const getResultsByUser = async (req, res) => {
+//   try {
+//     const userId = req.user.id; // Assume userId is extracted from the token
+
+//     await createResultsTable();
+
+//     // Fetch assessments created by the user
+//     const assessmentsQuery = 'SELECT * FROM "assessments" WHERE created_by = $1';
+//     const assessmentsResult = await client.query(assessmentsQuery, [userId]);
+
+//     if (assessmentsResult.rows.length === 0) {
+//       return res.status(404).json({ error: "No assessments found for this user" });
+//     }
+
+//     const assessments = assessmentsResult.rows;
+//     const assessmentIds = assessments.map(assessment => assessment.id);
+
+//     // Fetch results for these assessments
+//     const resultsQuery = 'SELECT * FROM "results" WHERE assessment_id = ANY($1)';
+//     const results = await client.query(resultsQuery, [assessmentIds]);
+
+//     // Fetch candidate names and emails for each result
+//     const candidateIds = results.rows.map(result => result.candidate_id);
+//     const candidateQuery = 'SELECT id, first_name, email FROM "candidates" WHERE id = ANY($1)';
+//     const candidateResult = await client.query(candidateQuery, [candidateIds]);
+//     const candidatesMap = new Map(candidateResult.rows.map(candidate => [candidate.id, { name: candidate.first_name, email: candidate.email }]));
+
+//     // Fetch assessment names and tests
+//     const assessmentsMap = new Map(assessments.map(assessment => [assessment.id, assessment]));
+
+//     // Group results by candidate id
+//     const resultsByCandidate = results.rows.reduce((acc, result) => {
+//       const { candidate_id, ...rest } = result;
+//       const candidate = acc[candidate_id] || {
+//         id: candidate_id,
+//         candidate_name: candidatesMap.get(candidate_id).name,
+//         candidate_email: candidatesMap.get(candidate_id).email,
+//         assessments: [],
+//       };
+
+//       // Find or create assessment
+//       let assessmentIndex = candidate.assessments.findIndex(assessment => assessment.name === assessmentsMap.get(result.assessment_id).assessment_name);
+//       if (assessmentIndex === -1) {
+//         assessmentIndex = candidate.assessments.length;
+//         candidate.assessments.push({
+//           name: assessmentsMap.get(result.assessment_id).assessment_name,
+//           tests: [],
+//         });
+//       }
+
+//       // Find or create test
+//       const assessment = assessmentsMap.get(result.assessment_id);
+//       const testDetails = assessment.tests.find(test => test.test_id === result.test_id);
+//       if (!testDetails) return acc; // Skip if no test details found
+
+//       let testIndex = candidate.assessments[assessmentIndex].tests.findIndex(test => test.name === testDetails.test_name);
+//       if (testIndex === -1) {
+//         testIndex = candidate.assessments[assessmentIndex].tests.length;
+//         candidate.assessments[assessmentIndex].tests.push({
+//           name: testDetails.test_name,
+//           total_questions: testDetails.questions.length,
+//           attempted_questions: rest.questions ? rest.questions.length : 0,
+//           score: rest.score,
+//           status: rest.questions && rest.questions.length > 0 ?
+//             (rest.questions.length === testDetails.questions.length ? 'Attempted' : `Attempted ${rest.questions.length} questions`) :
+//             'Not attempted any questions from this test',
+//         });
+//       }
+
+//       return { ...acc, [candidate_id]: candidate };
+//     }, {});
+
+//     // Include assessments without results
+//     assessments.forEach(assessment => {
+//       const assessmentName = assessment.assessment_name;
+//       const tests = assessment.tests;
+
+//       tests.forEach(test => {
+//         const testDetails = test;
+//         results.rows.forEach(result => {
+//           if (!resultsByCandidate[result.candidate_id]) {
+//             resultsByCandidate[result.candidate_id] = {
+//               id: result.candidate_id,
+//               candidate_name: candidatesMap.get(result.candidate_id).name,
+//               candidate_email: candidatesMap.get(result.candidate_id).email,
+//               assessments: [],
+//             };
+//           }
+
+//           let candidateAssessments = resultsByCandidate[result.candidate_id].assessments;
+//           let assessmentIndex = candidateAssessments.findIndex(a => a.name === assessmentName);
+//           if (assessmentIndex === -1) {
+//             assessmentIndex = candidateAssessments.length;
+//             candidateAssessments.push({
+//               name: assessmentName,
+//               tests: [],
+//             });
+//           }
+
+//           let testIndex = candidateAssessments[assessmentIndex].tests.findIndex(t => t.name === testDetails.test_name);
+//           if (testIndex === -1) {
+//             candidateAssessments[assessmentIndex].tests.push({
+//               name: testDetails.test_name,
+//               total_questions: testDetails.questions.length,
+//               attempted_questions: 0,
+//               status: 'Not attempted',
+//             });
+//           }
+//         });
+//       });
+//     });
+
+//     const resultsWithNames = Object.values(resultsByCandidate);
+
+//     res.status(200).json(resultsWithNames);
+//   } catch (error) {
+//     console.error("Error fetching results:", error.message);
+//     res.status(500).json({ error: "Error fetching results" });
+//   }
+// };
+
 const getResultsByUser = async (req, res) => {
   try {
     const userId = req.user.id; // Assume userId is extracted from the token
@@ -323,6 +445,10 @@ const getResultsByUser = async (req, res) => {
     // Fetch results for these assessments
     const resultsQuery = 'SELECT * FROM "results" WHERE assessment_id = ANY($1)';
     const results = await client.query(resultsQuery, [assessmentIds]);
+
+    if (results.rows.length === 0) {
+      return res.status(404).json({ error: "No results found for these assessments" });
+    }
 
     // Fetch candidate names and emails for each result
     const candidateIds = results.rows.map(result => result.candidate_id);
@@ -375,14 +501,15 @@ const getResultsByUser = async (req, res) => {
       return { ...acc, [candidate_id]: candidate };
     }, {});
 
-    // Include assessments without results
+    // Filter out assessments without results
     assessments.forEach(assessment => {
       const assessmentName = assessment.assessment_name;
       const tests = assessment.tests;
 
       tests.forEach(test => {
-        const testDetails = test;
         results.rows.forEach(result => {
+          if (result.assessment_id !== assessment.id) return; // Skip unrelated assessments
+
           if (!resultsByCandidate[result.candidate_id]) {
             resultsByCandidate[result.candidate_id] = {
               id: result.candidate_id,
@@ -402,11 +529,11 @@ const getResultsByUser = async (req, res) => {
             });
           }
 
-          let testIndex = candidateAssessments[assessmentIndex].tests.findIndex(t => t.name === testDetails.test_name);
+          let testIndex = candidateAssessments[assessmentIndex].tests.findIndex(t => t.name === test.test_name);
           if (testIndex === -1) {
             candidateAssessments[assessmentIndex].tests.push({
-              name: testDetails.test_name,
-              total_questions: testDetails.questions.length,
+              name: test.test_name,
+              total_questions: test.questions.length,
               attempted_questions: 0,
               status: 'Not attempted',
             });

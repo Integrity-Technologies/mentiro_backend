@@ -68,7 +68,8 @@ const findCompanyIdByName = async (companyName) => {
         return result.rows[0].id;
       } else {
         // Handle the case if a company with the provided name does not exist
-        throw new Error(`Company '${companyName}' not found`);
+        // throw new Error(`Company '${companyName}' not found`);
+        return null;
       }
     } catch (error) {
       throw error;
@@ -86,8 +87,8 @@ const findCompanyIdByName = async (companyName) => {
           categoryIds.push(result.rows[0].id);
         } else {
           // Handle the case if a category with the provided name does not exist
-          throw new Error(`Category '${categoryName}' not found`);
-          // return res.status(400).json({ error: `Category `${categoryName}` not found`});
+          // throw new Error(`Category '${categoryName}' not found`);
+          return null;
         }
       }
   
@@ -124,6 +125,22 @@ const deleteTestById = async (testId) => {
   }
 };
 
+  // Validate input data
+const validateTestInput = (test_name, test_description, category_names, company_name) => {
+  if (!test_name || typeof test_name !== 'string') {
+    throw new Error("Invalid or missing 'test_name'");
+  }
+  if (!test_description || typeof test_description !== 'string') {
+    throw new Error("Invalid or missing 'test_description'");
+  }
+  if (!Array.isArray(category_names) || category_names.length === 0) {
+    throw new Error("Invalid or missing 'category_names'");
+  }
+  if (!company_name || typeof company_name !== 'string') {
+    throw new Error("Invalid or missing 'company_name'");
+  }
+};
+
   // Create test
   const createTest = catchAsyncErrors(async (req, res, next) => {
     try {
@@ -134,10 +151,7 @@ const deleteTestById = async (testId) => {
       // Extract test data from the request body
       const { test_name, test_description, category_names, company_name } = req.body;
   
-      // Validate request data
-      if (!test_name || !category_names || !company_name) {
-        return res.status(400).json({ error: "Missing required fields" });
-      }
+      validateTestInput(test_name, test_description, category_names, company_name);
   
        // Check if a test with the same name already exists
        const existingTest = await client.query('SELECT * FROM tests WHERE test_name = $1', [test_name]);
@@ -147,9 +161,15 @@ const deleteTestById = async (testId) => {
 
       // Find company ID by name
       const companyId = await findCompanyIdByName(company_name);
-  
+      if (!companyId) {
+        return res.status(400).json({ error: `Company '${company_name}' not found` });
+      }
+
       // Find category IDs by names
       const categoryIds = await findCategoryIdsByName(category_names);
+      if (!categoryIds) {
+        return res.status(400).json({ error: `One or more categories not found` });
+      }
   
       // Create the test object with the extracted data
       const testData = {
@@ -242,16 +262,21 @@ const editTest = catchAsyncErrors(async (req, res, next) => {
     // Extract updated test data from the request body
     const { test_name, test_description, category_names, company_name } = req.body;
 
-    // Validate request data
-    if (!test_name || !category_names || !company_name) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
+    validateTestInput(test_name, test_description, category_names, company_name);
 
     // Find company ID by name
     const companyId = await findCompanyIdByName(company_name);
 
+    if (!companyId) {
+      return res.status(400).json({ error: `Company '${company_name}' not found` });
+    }
+
     // Find category IDs by names
     const categoryIds = await findCategoryIdsByName(category_names);
+
+    if (!categoryIds) {
+      return res.status(400).json({ error: `One or more categories not found` });
+    }
 
     // Fetch the existing test data from the database
     const existingTest = await client.query('SELECT * FROM tests WHERE id = $1', [testId]);

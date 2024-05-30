@@ -28,7 +28,7 @@ const createQuestionAndAnswer = async (req, res) => {
     await createQuestionTable();
     await createAnswersTable();
 
-    const { question_text, difficulty_level, category_names, options } = req.body;
+    const { question_text, difficulty_level, category_names, options, question_type } = req.body;
 
     // Validate request data
     if (!question_text || !difficulty_level || !category_names || !options) {
@@ -48,7 +48,8 @@ const createQuestionAndAnswer = async (req, res) => {
       // Save question if it does not exist
       const questionData = {
         question_text,
-        question_type: 'MCQS', // Assuming multiple-choice questions
+        // question_type: 'MCQS', // Assuming multiple-choice questions
+        question_type,
         difficulty_level,
         categories: categoryIds,
         created_by: req.user.id, // Assuming user ID is extracted from authentication middleware
@@ -123,13 +124,13 @@ const getAllQuestion = async (req, res) => {
       categories: question.categories.filter(Boolean).map(categoryId => categoriesMap.get(categoryId))
     }));
 
-    analytics.track({
-      userId: req.user.id.toString(),
-      event: 'Questions Fetched',
-      properties: {
-        question_count: QuestionsWithNames.length,
-      }
-    });
+    // analytics.track({
+    //   userId: req.user.id.toString(),
+    //   event: 'Questions Fetched',
+    //   properties: {
+    //     question_count: QuestionsWithNames.length,
+    //   }
+    // });
 
     res.status(200).json(QuestionsWithNames);
       // res.status(200).json(questions);
@@ -277,30 +278,33 @@ const deleteQuestion = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const query = `
+    // Query to fetch the question by ID
+    const questionQuery = `
       SELECT * FROM questions
       WHERE id = $1;
     `;
-    const result = await client.query(query, [id]);
+    const questionResult = await client.query(questionQuery, [id]);
 
-    if (result.rows.length === 0) {
+    if (questionResult.rows.length === 0) {
       return res.status(404).json({ error: "Question not found" });
     }
 
-    // return result.rows[0]; // Return the question object
-    const question = result.rows[0];
+    const question = questionResult.rows[0];
 
-    // analytics.track({
-    //   userId: req.user.id.toString(),
-    //   event: 'Question Fetched by ID',
-    //   properties: {
-    //     question_id: question.id,
-    //     question_text: question.question_text,
-    //     Fetched_by:id
-    //   }
-    // });
+    // Query to fetch the answers for the question
+    const answerQuery = `
+      SELECT * FROM answers
+      WHERE question_id = $1;
+    `;
+    const answerResult = await client.query(answerQuery, [id]);
 
-    res.status(200).json(question);
+    // Combine question and answers in the response
+    const response = {
+      ...question,
+      options: answerResult.rows.length > 0 ? answerResult.rows[0].options : []
+    };
+
+    res.status(200).json(response);
   } catch (error) {
     console.error("Error fetching question by ID:", error);
     res.status(500).json({ error: "Could not fetch question by ID" });

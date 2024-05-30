@@ -212,17 +212,88 @@ const createResult = async (req, res) => {
   }
 };
 
-
-// function calculatePercentage(score, maxScore = 100) {
-//   if (score === 0) return 0;
-//   // Use Math.round to round to the nearest integer, preventing exceeding 100%
-//   const percentage = Math.round((score / maxScore) * 100);
-//   // Ensure the percentage is not above 100
-//   return Math.min(percentage, 100);
-// }
-
-
 // get all results
+// proper function without assessment score or percentage (working proper and tested successfully)
+// const getAllResults = async (req, res) => {
+//   try {
+//     await createResultsTable();
+
+//     const results = await client.query('SELECT * FROM "results"');
+
+//     if (results.rows.length === 0) {
+//       return res.status(404).json({ error: "Results not found" });
+//     }
+
+//     // Fetch candidate names for each result
+//     const candidateIds = results.rows.map(result => result.candidate_id);
+//     const candidateResult = await client.query('SELECT id, first_name FROM "candidates" WHERE id = ANY($1)', [candidateIds]);
+//     const candidatesMap = new Map(candidateResult.rows.map(candidate => [candidate.id, candidate.first_name]));
+
+//     // Fetch test names for each result
+//     const testIds = results.rows.map(result => result.test_id);
+//     const testResult = await client.query('SELECT id, test_name FROM "tests" WHERE id = ANY($1)', [testIds]);
+//     const testsMap = new Map(testResult.rows.map(test => [test.id, test.test_name]));
+
+//     // Fetch assessment names for each result
+//     const assessmentIds = results.rows.map(result => result.assessment_id);
+//     const assessmentResult = await client.query('SELECT id, assessment_name FROM "assessments" WHERE id = ANY($1)', [assessmentIds]);
+//     const assessmentsMap = new Map(assessmentResult.rows.map(assessment => [assessment.id, assessment.assessment_name]));
+
+//     // Group results by candidate id
+//     const resultsByCandidate = results.rows.reduce((acc, result) => {
+//       const { candidate_id, ...rest } = result;
+//       const candidate = acc[candidate_id] || {
+//         id: candidate_id,
+//         candidate_name: candidatesMap.get(candidate_id),
+//         assessments: [],
+//       };
+
+//       // Find or create assessment
+//       let assessmentIndex = candidate.assessments.findIndex(assessment => assessment.name === assessmentsMap.get(result.assessment_id));
+//       if (assessmentIndex === -1) {
+//         assessmentIndex = candidate.assessments.length;
+//         candidate.assessments.push({
+//           name: assessmentsMap.get(result.assessment_id),
+//           tests: [],
+//         });
+//       }
+
+//       // Find or create test
+//       let testIndex = candidate.assessments[assessmentIndex].tests.findIndex(test => test.name === testsMap.get(result.test_id));
+//       if (testIndex === -1) {
+//         testIndex = candidate.assessments[assessmentIndex].tests.length;
+//         candidate.assessments[assessmentIndex].tests.push({
+//           name: testsMap.get(result.test_id),
+//           questions: result.questions || [], // Include questions array from the result
+//         });
+//       }
+
+//       // Calculate score and add to test
+//       // const score = calculatePercentage(rest.score);
+//       candidate.assessments[assessmentIndex].tests[testIndex].score = rest.score;
+
+//       return { ...acc, [candidate_id]: candidate };
+//     }, {});
+
+//     const resultsWithNames = Object.values(resultsByCandidate);
+
+//     // Track the get all results event in Segment
+//     analytics.track({
+//       userId: String(req.user.id),
+//       event: 'Get All Results',
+//       properties: {
+//         count: results.rows.length,
+//         fetched_at: new Date().toISOString(),
+//       }
+//     });
+
+//     res.status(200).json(resultsWithNames);
+//   } catch (error) {
+//     console.error("Error fetching results:", error.message);
+//     res.status(500).json({ error: "Error fetching results" });
+//   }
+// };
+
 const getAllResults = async (req, res) => {
   try {
     await createResultsTable();
@@ -264,6 +335,8 @@ const getAllResults = async (req, res) => {
         candidate.assessments.push({
           name: assessmentsMap.get(result.assessment_id),
           tests: [],
+          assessment_score: 0,
+          assessment_percentage: 0,
         });
       }
 
@@ -274,19 +347,26 @@ const getAllResults = async (req, res) => {
         candidate.assessments[assessmentIndex].tests.push({
           name: testsMap.get(result.test_id),
           questions: result.questions || [], // Include questions array from the result
+          score: rest.score,
         });
       }
 
-      // Calculate score and add to test
-      // const score = calculatePercentage(rest.score);
-      candidate.assessments[assessmentIndex].tests[testIndex].score = rest.score;
+      // Calculate score and add to assessment
+      candidate.assessments[assessmentIndex].assessment_score += rest.score;
 
       return { ...acc, [candidate_id]: candidate };
     }, {});
 
+    // Calculate assessment percentage for each assessment
+    Object.values(resultsByCandidate).forEach(candidate => {
+      candidate.assessments.forEach(assessment => {
+        assessment.assessment_percentage = calculatePercentage(assessment.assessment_score, assessment.tests.length * 100);
+      });
+    });
+
     const resultsWithNames = Object.values(resultsByCandidate);
 
-    // Track the get all results event in Segment
+    // Track the getAllResults event in Segment
     analytics.track({
       userId: String(req.user.id),
       event: 'Get All Results',
@@ -303,7 +383,7 @@ const getAllResults = async (req, res) => {
   }
 };
 
-// this response all the assessment that created by user to candidates object (NOT CORRECT )
+// proper function without assessment score or percentage (working proper and tested successfully)
 // const getResultsByUser = async (req, res) => {
 //   try {
 //     const userId = req.user.id; // Assume userId is extracted from the token
@@ -324,6 +404,10 @@ const getAllResults = async (req, res) => {
 //     // Fetch results for these assessments
 //     const resultsQuery = 'SELECT * FROM "results" WHERE assessment_id = ANY($1)';
 //     const results = await client.query(resultsQuery, [assessmentIds]);
+
+//     if (results.rows.length === 0) {
+//       return res.status(404).json({ error: "No results found for these assessments" });
+//     }
 
 //     // Fetch candidate names and emails for each result
 //     const candidateIds = results.rows.map(result => result.candidate_id);
@@ -376,14 +460,15 @@ const getAllResults = async (req, res) => {
 //       return { ...acc, [candidate_id]: candidate };
 //     }, {});
 
-//     // Include assessments without results
+//     // Filter out assessments without results
 //     assessments.forEach(assessment => {
 //       const assessmentName = assessment.assessment_name;
 //       const tests = assessment.tests;
 
 //       tests.forEach(test => {
-//         const testDetails = test;
 //         results.rows.forEach(result => {
+//           if (result.assessment_id !== assessment.id) return; // Skip unrelated assessments
+
 //           if (!resultsByCandidate[result.candidate_id]) {
 //             resultsByCandidate[result.candidate_id] = {
 //               id: result.candidate_id,
@@ -403,11 +488,11 @@ const getAllResults = async (req, res) => {
 //             });
 //           }
 
-//           let testIndex = candidateAssessments[assessmentIndex].tests.findIndex(t => t.name === testDetails.test_name);
+//           let testIndex = candidateAssessments[assessmentIndex].tests.findIndex(t => t.name === test.test_name);
 //           if (testIndex === -1) {
 //             candidateAssessments[assessmentIndex].tests.push({
-//               name: testDetails.test_name,
-//               total_questions: testDetails.questions.length,
+//               name: test.test_name,
+//               total_questions: test.questions.length,
 //               attempted_questions: 0,
 //               status: 'Not attempted',
 //             });
@@ -501,6 +586,22 @@ const getResultsByUser = async (req, res) => {
       return { ...acc, [candidate_id]: candidate };
     }, {});
 
+    // Calculate assessment percentage and score for each assessment
+    Object.values(resultsByCandidate).forEach(candidate => {
+      candidate.assessments.forEach(assessment => {
+        let totalScore = 0;
+        let totalTests = 0;
+
+        assessment.tests.forEach(test => {
+          totalScore += test.score || 0;
+          totalTests++;
+        });
+
+        assessment.assessment_score = totalScore;
+        assessment.assessment_percentage = calculatePercentage(totalScore, totalTests * 100);
+      });
+    });
+
     // Filter out assessments without results
     assessments.forEach(assessment => {
       const assessmentName = assessment.assessment_name;
@@ -550,128 +651,5 @@ const getResultsByUser = async (req, res) => {
     res.status(500).json({ error: "Error fetching results" });
   }
 };
-
-// Final version (JUST FOR CHECKING)
-// const getResultsByUser = async (req, res) => {
-//   try {
-//     const userId = req.user.id; // Assume userId is extracted from the token
-
-//     await createResultsTable();
-
-//     // Fetch assessments created by the user
-//     const assessmentsQuery = 'SELECT * FROM "assessments" WHERE created_by = $1';
-//     const assessmentsResult = await client.query(assessmentsQuery, [userId]);
-
-//     if (assessmentsResult.rows.length === 0) {
-//       return res.status(404).json({ error: "No assessments found for this user" });
-//     }
-
-//     const assessments = assessmentsResult.rows;
-//     const assessmentIds = assessments.map(assessment => assessment.id);
-
-//     // Fetch results for these assessments
-//     const resultsQuery = 'SELECT * FROM "results" WHERE assessment_id = ANY($1)';
-//     const results = await client.query(resultsQuery, [assessmentIds]);
-
-//     // Fetch candidate names and emails for each result
-//     const candidateIds = results.rows.map(result => result.candidate_id);
-//     const candidateQuery = 'SELECT id, first_name, email FROM "candidates" WHERE id = ANY($1)';
-//     const candidateResult = await client.query(candidateQuery, [candidateIds]);
-//     const candidatesMap = new Map(candidateResult.rows.map(candidate => [candidate.id, { name: candidate.first_name, email: candidate.email }]));
-
-//     // Fetch assessment names and tests
-//     const assessmentsMap = new Map(assessments.map(assessment => [assessment.id, assessment]));
-
-//     // Group results by candidate id
-//     const resultsByCandidate = results.rows.reduce((acc, result) => {
-//       const { candidate_id, ...rest } = result;
-//       const candidate = acc[candidate_id] || {
-//         id: candidate_id,
-//         candidate_name: candidatesMap.get(candidate_id).name,
-//         candidate_email: candidatesMap.get(candidate_id).email,
-//         assessments: [],
-//       };
-
-//       // Find or create assessment
-//       let assessmentIndex = candidate.assessments.findIndex(assessment => assessment.name === assessmentsMap.get(result.assessment_id).assessment_name);
-//       if (assessmentIndex === -1) {
-//         assessmentIndex = candidate.assessments.length;
-//         candidate.assessments.push({
-//           name: assessmentsMap.get(result.assessment_id).assessment_name,
-//           tests: [],
-//         });
-//       }
-
-//       // Find or create test
-//       const assessment = assessmentsMap.get(result.assessment_id);
-//       const testDetails = assessment.tests.find(test => test.test_id === result.test_id);
-//       if (!testDetails) return acc; // Skip if no test details found
-
-//       let testIndex = candidate.assessments[assessmentIndex].tests.findIndex(test => test.name === testDetails.test_name);
-//       if (testIndex === -1) {
-//         testIndex = candidate.assessments[assessmentIndex].tests.length;
-//         candidate.assessments[assessmentIndex].tests.push({
-//           name: testDetails.test_name,
-//           total_questions: testDetails.questions.length,
-//           attempted_questions: rest.questions ? rest.questions.length : 0,
-//           score: rest.score, // Add score here
-//           status: rest.questions && rest.questions.length > 0 ?
-//             (rest.questions.length === testDetails.questions.length ? 'Attempted' : `Attempted ${rest.questions.length} questions`) :
-//             'Not attempted',
-//         });
-//       }
-
-//       return { ...acc, [candidate_id]: candidate };
-//     }, {});
-
-//     // Include assessments without results
-//     assessments.forEach(assessment => {
-//       const assessmentName = assessment.assessment_name;
-//       const tests = assessment.tests;
-
-//       tests.forEach(test => {
-//         const testDetails = test;
-//         results.rows.forEach(result => {
-//           if (!resultsByCandidate[result.candidate_id]) {
-//             resultsByCandidate[result.candidate_id] = {
-//               id: result.candidate_id,
-//               candidate_name: candidatesMap.get(result.candidate_id).name,
-//               candidate_email: candidatesMap.get(result.candidate_id).email,
-//               assessments: [],
-//             };
-//           }
-
-//           let candidateAssessments = resultsByCandidate[result.candidate_id].assessments;
-//           let assessmentIndex = candidateAssessments.findIndex(a => a.name === assessmentName);
-//           if (assessmentIndex === -1) {
-//             assessmentIndex = candidateAssessments.length;
-//             candidateAssessments.push({
-//               name: assessmentName,
-//               tests: [],
-//             });
-//           }
-
-//           let testIndex = candidateAssessments[assessmentIndex].tests.findIndex(t => t.name === testDetails.test_name);
-//           if (testIndex === -1) {
-//             candidateAssessments[assessmentIndex].tests.push({
-//               name: testDetails.test_name,
-//               total_questions: testDetails.questions.length,
-//               attempted_questions: 0,
-//               score: null, // No score since no results
-//               status: 'Not attempted',
-//             });
-//           }
-//         });
-//       });
-//     });
-
-//     const resultsWithNames = Object.values(resultsByCandidate);
-
-//     res.status(200).json(resultsWithNames);
-//   } catch (error) {
-//     console.error("Error fetching results:", error.message);
-//     res.status(500).json({ error: "Error fetching results" });
-//   }
-// };
 
 module.exports = { submitAnswer, createResult, getAllResults, getResultsByUser };

@@ -3,6 +3,8 @@ const { createTestsTable, saveTest } = require("../models/test");
 const { client } = require("../db/index.js");
 const analytics = require('../segment/segmentConfig');
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
+const ErrorHandler = require("../utils/errorHandler");
+const { sendErrorResponse } = require("../utils/res_error.js");
 
 // Get all tests
 const getAllTests = catchAsyncErrors(async (req, res, next) => {
@@ -15,7 +17,8 @@ const getAllTests = catchAsyncErrors(async (req, res, next) => {
 
     // If no tests found, return an empty array
     if (tests.length === 0) {
-      return res.status(400).json({ error: "Test not found" });;
+      // return res.status(400).json({ error: "Test not found" });;
+      return sendErrorResponse(res, 404, "No tests found");
     }
 
     // Fetch company names for each test
@@ -126,19 +129,20 @@ const deleteTestById = async (testId) => {
 };
 
   // Validate input data
-const validateTestInput = (test_name, test_description, category_names, company_name) => {
-  if (!test_name || typeof test_name !== 'string') {
-    throw new Error("Invalid or missing 'test_name'");
-  }
-  if (!test_description || typeof test_description !== 'string') {
-    throw new Error("Invalid or missing 'test_description'");
-  }
-  if (!Array.isArray(category_names) || category_names.length === 0) {
-    throw new Error("Invalid or missing 'category_names'");
-  }
-  if (!company_name || typeof company_name !== 'string') {
-    throw new Error("Invalid or missing 'company_name'");
-  }
+  const validateTestInput = (test_name, test_description, category_names, company_name) => {
+    if (!test_name || typeof test_name !== 'string') {
+        throw new ErrorHandler("Invalid or missing 'test_name'", 400);
+        // return sendErrorResponse(res, 404, "No tests found");
+    }
+    if (!test_description || typeof test_description !== 'string') {
+        throw new ErrorHandler("Invalid or missing 'test_description'", 400);
+    }
+    if (!Array.isArray(category_names) || category_names.length === 0) {
+        throw new ErrorHandler("Invalid or missing 'category_names'", 400);
+    }
+    if (!company_name || typeof company_name !== 'string') {
+        throw new ErrorHandler("Invalid or missing 'company_name'", 400);
+    }
 };
 
   // Create test

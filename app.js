@@ -11,6 +11,8 @@ const answerRoutes = require('./routes/answerRoutes');
 const workArrangementRoutes = require('./routes/workArrangement');
 const jobLocationRoutes = require('./routes/jobLocation');
 const jobRoleRoutes = require('./routes/jobRole');
+const errorMiddleware = require('./middleware/error');
+
 const cors = require("cors");
 const dotenv = require("dotenv");
 const cookieParser = require('cookie-parser');
@@ -44,6 +46,7 @@ app.use("/api/result", resultRoutes);
 app.use("/api/workArrangement",workArrangementRoutes);
 app.use("/api/jobRole",jobRoleRoutes);
 app.use("/api/jobLocation",jobLocationRoutes);
+// app.use(errorMiddleware); // Error handling middleware 
 
 const server = app.listen(process.env.PORT, () => {
   console.log(`Server is running on http://localhost:${process.env.PORT}`);
@@ -51,9 +54,9 @@ const server = app.listen(process.env.PORT, () => {
 
 // unhandled Promise Rejection
 // process.on("unhandledRejection",err=>{
-//   console.log(`Error: ${err.message}`);
-//   console.log(`Shutting down the server due to unhandled Promise Rejection`);
-// server.close(()=>{
-//   process.exit(1);
-// })
-// })
+  //   console.log(`Error: ${err.message}`);
+  //   console.log(`Shutting down the server due to unhandled Promise Rejection`);
+  // server.close(()=>{
+    //   process.exit(1);
+    // })
+    // })

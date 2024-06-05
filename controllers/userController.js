@@ -1,5 +1,3 @@
-// controllers/userController.js
-
 const { createUserTable, saveUser } = require("../models/user");
 const analytics = require('../segment/segmentConfig');
 const bcrypt = require('bcrypt');
@@ -8,190 +6,265 @@ const { client } = require("../db/index.js");
 const { sendToken } = require("../utils/jwtToken");
 const { sendEmail } = require("../utils/sendEmail.js");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
+const { sendErrorResponse } = require("../utils/res_error");
+const { body, validationResult } = require('express-validator');
 const saltRounds = 10;
 const crypto = require("crypto");
 
+// Common validation rules for user
+// Validation rules
+const userValidationRules = [
+  body('first_name')
+    .isString().withMessage('First name must be a string')
+    .isLength({ min: 1 }).withMessage('First name is required'),
+  body('last_name')
+    .isString().withMessage('Last name must be a string')
+    .isLength({ min: 1 }).withMessage('Last name is required'),
+  body('email')
+    .isEmail().withMessage('Invalid email address')
+    .normalizeEmail(),
+  body('password')
+    .isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
+    .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')
+    .matches(/[a-z]/).withMessage('Password must contain at least one lowercase letter')
+    .matches(/[0-9]/).withMessage('Password must contain at least one number')
+    .matches(/[\W_]/).withMessage('Password must contain at least one special character'),
+  body('phone')
+    .isNumeric().withMessage('Phone must be numeric')
+    .isLength({ min: 10, max: 15 }).withMessage('Phone must be between 10 and 15 characters'),
+];
 
-// signup 
-const signup = catchAsyncErrors(async (req, res, next) => {
-  const { first_name, last_name, email, is_email_verified, phone, is_phone_verified, password, permissions, is_active, is_employee } =
-    req.body;
-
-  await createUserTable();
-
-  // Check if a user with the same email already exists
-  const existingUser = await client.query('SELECT * FROM "users" WHERE email = $1', [email]);
-  if (existingUser.rows.length > 0) {
-    return res.status(400).json({ error: "User with this email already exists" });
+// Custom validation functions
+const validateUserExists = async (userId) => {
+  const user = await client.query('SELECT * FROM "users" WHERE id = $1', [userId]);
+  if (user.rows.length === 0) {
+    throw new Error('User not found');
   }
+};
 
-  const hashedPassword = await bcrypt.hash(password, saltRounds);
+const handleValidationErrors = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  next();
+};
 
+// Get user by full name
+const getUserByFullName = async (firstName, lastName) => {
   try {
-    // Save the user data
-    const result = await saveUser({
-      first_name,
-      last_name,
-      email,
-      is_email_verified,
-      phone,
-      is_phone_verified,
-      password: hashedPassword,
-      permissions,
-      is_active,
-      is_employee,
-    });
-
-    if (!result.id) {
-      throw new Error("User ID is missing or invalid");
-    }
-    console.log(result.id);
-    // Identify the user in Segment
-    analytics.identify({
-      userId: String(result.id), // Ensure userId is a string
-      traits: {
-        email: result.email,
-        firstName: result.first_name,
-        lastName: result.last_name,
-      }
-    });
-
-    // Track the signup event in Segment
-    analytics.track({
-      userId: String(result.id), // Ensure userId is a string
-      event: 'User Signed Up',
-      properties: {
-        // Add relevant properties about the signup event
-        email: result.email, // Email of the user who signed up
-        firstName: result.first_name, // First name of the user who signed up
-        lastName: result.last_name, // Last name of the user who signed up
-        signupMethod: 'Website', // Indicates the method used for signup
-        createdAt: new Date().toISOString(), // Timestamp of when the signup event occurred
-      }
-    });
-
-    sendToken(result, 201, res);
+    const result = await client.query('SELECT * FROM users WHERE first_name = $1 AND last_name = $2', [firstName, lastName]);
+    return result.rows.length > 0 ? result.rows[0] : null;
   } catch (error) {
-    console.error("Error occurred:", error);
-    res.status(500).json({ error: "An internal server error occurred" });
+    console.error("Error getting user by full name:", error.message);
+    throw new Error("Error getting user by full name");
   }
-});
+};
 
-// Add user (similar to signup)
-const addUser = catchAsyncErrors(async (req, res, next) => {
-  const { first_name, last_name, email, is_email_verified, phone, is_phone_verified, password, permissions, is_active, is_employee } =
-    req.body;
+// Signup new user
+const signup = [
+  ...userValidationRules,
+  handleValidationErrors,
+  catchAsyncErrors(async (req, res, next) => {
+    const { first_name, last_name, email, is_email_verified, phone, is_phone_verified, password, permissions, is_active, is_employee } = req.body;
 
-  await createUserTable();
+    await createUserTable();
 
-  // Check if a user with the same email already exists
-  const existingUser = await client.query('SELECT * FROM "users" WHERE email = $1', [email]);
-  if (existingUser.rows.length > 0) {
-    return res.status(400).json({ error: "User with this email already exists" });
-  }
-
-  const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-  try {
-    // Save the user data
-    const result = await saveUser({
-      first_name,
-      last_name,
-      email,
-      is_email_verified,
-      phone,
-      is_phone_verified,
-      password: hashedPassword,
-      permissions,
-      is_active,
-      is_employee,
-    });
-
-    if (!result.id) {
-      throw new Error("User ID is missing or invalid");
-    }
-    console.log(result.id);
-
-    analytics.identify({
-      userId: String(result.id),
-      traits: {
-        email: result.email,
-        firstName: result.first_name,
-        lastName: result.last_name,
-      }
-    });
-
-    // // Track the signup event in Segment
-    analytics.track({
-      userId: String(result.id),
-      event: 'User Added',
-      properties: {
-        email: result.email,
-        firstName: result.first_name,
-        lastName: result.last_name,
-        signupMethod: 'Website',
-        createdAt: new Date().toISOString(),
-      }
-    });
-
-    sendToken(result, 201, res);
-  } catch (error) {
-    console.error("Error occurred:", error);
-    res.status(500).json({ error: "An internal server error occurred" });
-  }
-});
-
-// login
-const login = catchAsyncErrors(async (req, res, next) => {
-  const { email, password } = req.body;
-
-  // Check if user exists with the provided email
-  try {
+    // Check if a user with the same email already exists
     const existingUser = await client.query('SELECT * FROM "users" WHERE email = $1', [email]);
-
-    if (existingUser.rows.length === 0) {
-      return res.status(400).json({ error: "User with this email id doesn't exists" });
+    if (existingUser.rows.length > 0) {
+      // return res.status(400).json({ error: "User with this email already exists" });
+      return sendErrorResponse(res, 400, 'User with this email already exists');
     }
 
-    const user = existingUser.rows[0]; // Get the user data
-
-    // Compare hashed password with provided password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-
-    if (!isPasswordValid) {
-      return res.status(400).json({ error: "Invalid password" });
+    // Check if a user with the same first name and last name already exists
+    const existingUserByName = await getUserByFullName(first_name, last_name);
+    if (existingUserByName) {
+      return sendErrorResponse(res, 400, 'user with this first name and last name already exists');
     }
 
-    // Identify the user in Segment
-    analytics.identify({
-      userId: String(user.id),
-      traits: {
-        email: user.email,
-        firstName: user.first_name,
-        lastName: user.last_name,
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    try {
+      // Save the user data
+      const result = await saveUser({
+        first_name,
+        last_name,
+        email,
+        is_email_verified,
+        phone,
+        is_phone_verified,
+        password: hashedPassword,
+        permissions,
+        is_active,
+        is_employee,
+      });
+
+      if (!result.id) {
+        throw new Error("User ID is missing or invalid");
       }
-    });
 
-    // Track the login event in Segment
-    analytics.track({
-      userId: String(user.id),
-      event: 'User Logged In',
-      properties: {
-        email: user.email,
-        loginMethod: 'Website',
-        loginAt: new Date().toISOString(),
+      // Identify the user in Segment
+      analytics.identify({
+        userId: String(result.id), // Ensure userId is a string
+        traits: {
+          email: result.email,
+          firstName: result.first_name,
+          lastName: result.last_name,
+        }
+      });
+
+      // Track the signup event in Segment
+      analytics.track({
+        userId: String(result.id), // Ensure userId is a string
+        event: 'User Signed Up',
+        properties: {
+          email: result.email,
+          firstName: result.first_name,
+          lastName: result.last_name,
+          signupMethod: 'Website',
+          createdAt: new Date().toISOString(),
+        }
+      });
+
+      sendToken(result, 201, res);
+    } catch (error) {
+      console.error("Error occurred:", error);
+      res.status(500).json({ error: "An internal server error occurred" });
+    }
+  })
+];
+
+// Add user (Admin functionality, similar to signup)
+const addUser = [
+  ...userValidationRules,
+  handleValidationErrors,
+  catchAsyncErrors(async (req, res, next) => {
+    const { first_name, last_name, email, is_email_verified, phone, is_phone_verified, password, permissions, is_active, is_employee } = req.body;
+
+    await createUserTable();
+
+    // Check if a user with the same email already exists
+    const existingUser = await client.query('SELECT * FROM "users" WHERE email = $1', [email]);
+    if (existingUser.rows.length > 0) {
+      // return res.status(400).json({ error: "User with this email already exists" });
+      return sendErrorResponse(res, 400, 'User with this email already exists');
+    }
+
+    // Check if a user with the same first name and last name already exists
+    const existingUserByName = await getUserByFullName(first_name, last_name);
+    if (existingUserByName) {
+      return sendErrorResponse(res, 400, 'user with this first name and last name already exists');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    try {
+      // Save the user data
+      const result = await saveUser({
+        first_name,
+        last_name,
+        email,
+        is_email_verified,
+        phone,
+        is_phone_verified,
+        password: hashedPassword,
+        permissions,
+        is_active,
+        is_employee,
+      });
+
+      if (!result.id) {
+        throw new Error("User ID is missing or invalid");
       }
-    });
 
-    // Login successful, generate and send token
-    sendToken(user, 200, res); // Status code changed to 200 for successful login
-  } catch (error) {
-    console.error("Error occurred during login:", error);
-    res.status(500).json({ error: "An internal server error occurred" });
-  }
-});
+      // Identify the user in Segment
+      analytics.identify({
+        userId: String(result.id),
+        traits: {
+          email: result.email,
+          firstName: result.first_name,
+          lastName: result.last_name,
+        }
+      });
 
-// // Logout User
+      // Track the user addition event in Segment
+      analytics.track({
+        userId: String(result.id),
+        event: 'User Added',
+        properties: {
+          email: result.email,
+          firstName: result.first_name,
+          lastName: result.last_name,
+          signupMethod: 'Admin',
+          createdAt: new Date().toISOString(),
+        }
+      });
+
+      sendToken(result, 201, res);
+    } catch (error) {
+      console.error("Error occurred:", error);
+      res.status(500).json({ error: "An internal server error occurred" });
+    }
+  })
+];
+
+// User login
+const login = [
+  body('email').isEmail().withMessage('Invalid email address'),
+  body('password').notEmpty().withMessage('Password is required'),
+  handleValidationErrors,
+  catchAsyncErrors(async (req, res, next) => {
+    const { email, password } = req.body;
+
+    try {
+      // Check if user exists with the provided email
+      const existingUser = await client.query('SELECT * FROM "users" WHERE email = $1', [email]);
+      if (existingUser.rows.length === 0) {
+        // return res.status(400).json({ error: "User with this email doesn't exist" });
+        return sendErrorResponse(res, 400, 'User with this email does not exists');
+      }
+
+      const user = existingUser.rows[0];
+
+      // Compare hashed password with provided password
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        // return res.status(400).json({ error: "Invalid password" });
+        return sendErrorResponse(res, 400, 'Invalid password');
+      }
+
+      // Identify the user in Segment
+      analytics.identify({
+        userId: String(user.id),
+        traits: {
+          email: user.email,
+          firstName: user.first_name,
+          lastName: user.last_name,
+        }
+      });
+
+      // Track the login event in Segment
+      analytics.track({
+        userId: String(user.id),
+        event: 'User Logged In',
+        properties: {
+          email: user.email,
+          loginMethod: 'Website',
+          loginAt: new Date().toISOString(),
+        }
+      });
+
+      // Login successful, generate and send token
+      sendToken(user, 200, res);
+    } catch (error) {
+      console.error("Error occurred during login:", error);
+      res.status(500).json({ error: "An internal server error occurred" });
+    }
+  })
+];
+
+// User logout
 const logout = catchAsyncErrors(async (req, res, next) => {
   res.cookie("token", null, {
     expires: new Date(Date.now()),
@@ -200,7 +273,7 @@ const logout = catchAsyncErrors(async (req, res, next) => {
 
   // Track the logout event in Segment
   analytics.track({
-    userId: String(userId),
+    userId: String(req.user.id),
     event: 'User Logged Out',
     properties: {
       logoutAt: new Date().toISOString(),
@@ -213,7 +286,7 @@ const logout = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
-// get all users (Admin)
+// Get all users (Admin functionality)
 const getAllUsers = catchAsyncErrors(async (req, res, next) => {
   try {
     // Fetch all users from the database
@@ -229,178 +302,134 @@ const getAllUsers = catchAsyncErrors(async (req, res, next) => {
       }
     });
 
-    res.status(200).json(users.rows); // Return all user data in the response
+    res.status(200).json(users.rows);
   } catch (error) {
     console.error("Error occurred while fetching users:", error);
     res.status(500).json({ error: "An internal server error occurred" });
   }
 });
 
-// forgot password
-const forgotPassword = catchAsyncErrors(async (req, res, next) => {
-  const { email } = req.body;
+// Forgot password
+const forgotPassword = [
+  body('email').isEmail().withMessage('Invalid email address'),
+  handleValidationErrors,
+  catchAsyncErrors(async (req, res, next) => {
+    const { email } = req.body;
 
-  try {
-    // Check if user exists with the provided email
-    const existingUser = await client.query('SELECT * FROM "users" WHERE email = $1', [email]);
-
-    if (existingUser.rows.length === 0) {
-      return res.status(400).json({ error: "User with this email doesn't exist" });
-    }
-
-    const user = existingUser.rows[0];
-
-    // Generate a random reset token with expiration time
-    const resetPasswordToken = crypto.randomBytes(20).toString('hex');
-    const resetToken = crypto.createHash("sha256").update(resetPasswordToken).digest("hex");;
-    const resetTokenExpiry = new Date(Date.now() + 3600000);
-
-    // Update user with reset token and expiry
-    await client.query('UPDATE "users" SET reset_token = $1, reset_token_expiry = $2 WHERE email = $3',
-      [resetToken, resetTokenExpiry, email]);
-
-    //     // Create the email content
-    const resetUrl = `http://localhost:3000/api/users/password/reset?token=${resetToken}`; // Replace with your reset password URL
-    const message = `Your password reset token :- \n\n ${resetUrl} \n\nIf you have not requested this email then, please ignore it.`;
-
-    await sendEmail({
-      email: user.email,
-      subject: `mentiro Password Recovery`,
-      message,
-    });
-
-    // Track the password reset request event in Segment
-    analytics.track({
-      userId: String(user.id),
-      event: 'Password Reset Requested',
-      properties: {
-        email: user.email,
-        resetRequestedAt: new Date().toISOString(),
-        resetToken: resetToken,
+    try {
+      // Check if user exists with the provided email
+      const existingUser = await client.query('SELECT * FROM "users" WHERE email = $1', [email]);
+      if (existingUser.rows.length === 0) {
+        // return res.status(400).json({ error: "User with this email doesn't exist" });
+        return sendErrorResponse(res, 400, 'User with this email does not exist');
       }
-    });
 
-    res.status(200).json({ message: "Password reset link sent successfully!" });
-  } catch (error) {
-    // Set reset token and expiry to null if email sending fails
-    await client.query('UPDATE "users" SET reset_token = $1, reset_token_expiry = $2 WHERE email = $3',
-      [null, null, email]);
+      const user = existingUser.rows[0];
 
-    console.error("Error sending password reset email:", error);
-    res.status(500).json({ error: "An internal server error occurred" });
-  }
-});
+      // Generate a random reset token with expiration time
+      const resetPasswordToken = crypto.randomBytes(20).toString('hex');
+      const resetToken = crypto.createHash("sha256").update(resetPasswordToken).digest("hex");
+      const resetTokenExpiry = new Date(Date.now() + 15 * 60 * 1000);
 
-// reset password
-const resetPassword = catchAsyncErrors(async (req, res, next) => {
-  const { token, newPassword, confirmPassword } = req.body;
+      // Update user's reset token and expiry in the database
+      await client.query('UPDATE "users" SET reset_token = $1, reset_token_expiry = $2 WHERE id = $3', [resetToken, resetTokenExpiry, user.id]);
 
-  try {
-    // Check if reset token is valid and not expired
-    const now = new Date(Date.now());
-    const user = await client.query('SELECT * FROM "users" WHERE reset_token = $1 AND reset_token_expiry > $2',
-      [token, now]);
+      // Send the reset password email
+      const resetUrl = `${req.protocol}://${req.get("host")}/api/v1/password/reset/${resetPasswordToken}`;
+      const message = `Your password reset token is as follows: \n\n${resetUrl}\n\nIf you have not requested this email, then ignore it.`;
 
-    if (user.rows.length === 0) {
-      return res.status(400).json({ error: "Invalid or expired reset token" });
+      try {
+        await sendEmail({
+          email: user.email,
+          subject: 'Password Recovery',
+          message,
+        });
+
+        res.status(200).json({
+          success: true,
+          message: `Email sent to ${user.email} successfully`,
+        });
+      } catch (error) {
+        // Reset token and expiry on failure
+        await client.query('UPDATE "users" SET reset_password_token = NULL, reset_password_expiry = NULL WHERE id = $1', [user.id]);
+        console.error("Error occurred while sending email:", error);
+        return res.status(500).json({ error: "An internal server error occurred" });
+      }
+    } catch (error) {
+      console.error("Error occurred during password recovery:", error);
+      res.status(500).json({ error: "An internal server error occurred" });
     }
+  })
+];
 
-    const userToUpdate = user.rows[0];
+// Reset password
+const resetPassword = [
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
+  handleValidationErrors,
+  catchAsyncErrors(async (req, res, next) => {
+    const { newPassword, confirmPassword, token} = req.body;
 
-    // Validate new password and confirm password match
+      const now = new Date(Date.now());
+
+      // Find user by reset token and ensure token has not expired
+      const user = await client.query('SELECT * FROM "users" WHERE reset_token = $1 AND reset_token_expiry > $2', [token, now]);
+      if (user.rows.length === 0) {
+        return sendErrorResponse(res, 400, 'Invalid or expired reset token');
+      }
+
+       // Validate new password and confirm password match
     if (newPassword !== confirmPassword) {
-      return res.status(400).json({ error: "New passwords do not match" });
+      return sendErrorResponse(res, 400, 'New password do not match');
     }
 
-    // Hash the new password
-    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+      // Update user's password
+      const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+      await client.query('UPDATE "users" SET password = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2', [hashedPassword, user.rows[0].id]);
 
-    // Update user password and remove reset token/expiry
-    await client.query('UPDATE "users" SET password = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2',
-      [hashedPassword, userToUpdate.id]);
+      res.status(200).json({ success: true, message: "Password reset successfully" });
+    
+  })
+];
 
-      analytics.track({
-        userId: String(userToUpdate.id),
-        event: 'Password Reset',
-        properties: {
-          resetAt: new Date().toISOString(),
-        }
-      });
-
-    res.status(200).json({ message: "Password reset successfully!" });
-  } catch (error) {
-    console.error("Error resetting password:", error);
-    res.status(500).json({ error: "An internal server error occurred" });
-  }
-});
-
-const getUserDetails = catchAsyncErrors(async (req, res, next) => {
+// Get user details
+const getUserDetails = catchAsyncErrors(async (req, res) => {
   const userId = req.user.id;
 
-  try {
-    const existingUser = await client.query('SELECT * FROM "users" WHERE id = $1', [userId]);
-
-    if (existingUser.rows.length === 0) {
-      return res.status(400).json({ error: "User not found" });
-    }
-
-    const user = existingUser.rows[0]; // Get the user data
-
-    analytics.identify({
-      userId: String(user.id),
-      traits: {
-        email: user.email,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        phone: user.phone,
-      }
-    });
-
-    res.status(200).json({
-      success: true,
-      user,
-    });
-
-  } catch (error) {
-    console.error('Error fetching user details:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal Server Error',
-    });
+  const user = await client.query('SELECT * FROM "users" WHERE id = $1', [userId]);
+  if (user.rows.length === 0) {
+    return sendErrorResponse(res, 400, 'User not found');
   }
+
+  res.status(200).json(user.rows[0]);
 });
 
-
 // Edit user details (Admin)
-const editUser = catchAsyncErrors(async (req, res, next) => {
-  const userId = req.params.id;
-  const { first_name, last_name, email, password, phone } = req.body;
+const editUser = [
+  ...userValidationRules,
+  handleValidationErrors,
+  catchAsyncErrors(async (req, res) => {
+    const userId = req.params.id;
+    const { first_name, last_name, email, password, phone } = req.body;
 
-  try {
-    const existingUser = await client.query(
-      'SELECT * FROM "users" WHERE id = $1',
-      [userId]
-    );
+    await validateUserExists(userId);
 
-    if (existingUser.rows.length === 0) {
-      return res.status(400).json({ error: "User not found" });
+    // Check if a user with the same first name and last name already exists
+    const existingUserByName = await getUserByFullName(first_name, last_name);
+    if (existingUserByName) {
+      return sendErrorResponse(res, 400, 'user with this first name and last name already exists');
     }
 
     let hashedPassword = null;
-
-    // Check if password is provided in the request body
     if (password) {
-      hashedPassword = await bcrypt.hash(password, saltRounds);
+      hashedPassword = await bcrypt.hash(password, 10);
     }
 
-    // Update user details, excluding password if not provided
     const updateQuery = `
       UPDATE "users" 
       SET first_name = $2, last_name = $3, email = $4, phone = $5 ${hashedPassword ? ', password = $6' : ''} 
       WHERE id = $1
     `;
     const values = [userId, first_name, last_name, email, phone];
-    // If hashedPassword is not null, add it to the values array
     if (hashedPassword) {
       values.push(hashedPassword);
     }
@@ -408,73 +437,47 @@ const editUser = catchAsyncErrors(async (req, res, next) => {
 
     analytics.identify({
       userId: String(userId),
-      traits: {
-        email: email,
-        firstName: first_name,
-        lastName: last_name,
-        phone: phone,
-      }
+      traits: { email, firstName: first_name, lastName: last_name, phone }
     });
 
     analytics.track({
       userId: String(userId),
       event: 'User Details Edited',
-      properties: {
-        editedAt: new Date().toISOString(),
-        email: email,
-        firstName: first_name,
-        lastName: last_name,
-        phone: phone,
-      }
+      properties: { editedAt: new Date().toISOString(), email, firstName: first_name, lastName: last_name, phone }
     });
 
-    res
-      .status(200)
-      .json({ success: true, message: "User details updated successfully" });
-  } catch (error) {
-    console.error("Error editing user details:", error);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
-});
+    res.status(200).json({ success: true, message: 'User details updated successfully' });
+  })
+]
+
 // Delete user (Admin)
-const deleteUser = catchAsyncErrors(async (req, res, next) => {
+const deleteUser = catchAsyncErrors(async (req, res) => {
   const userId = req.params.id;
 
-  try {
-    const existingUser = await client.query(
-      'SELECT * FROM "users" WHERE id = $1',
-      [userId]
-    );
+  await validateUserExists(userId);
 
-    if (existingUser.rows.length === 0) {
-      return res.status(400).json({ error: "User not found" });
-    }
+  await client.query('BEGIN');
+  await client.query('DELETE FROM "users" WHERE id = $1', [userId]);
+  await client.query('COMMIT');
 
-    // **Cascading Delete with `ON DELETE CASCADE`**
-    await client.query('BEGIN'); // Start transaction
-    await client.query(
-      'DELETE FROM "companies" WHERE created_by = $1',
-      [userId]
-    );
-    await client.query('DELETE FROM assessments WHERE created_by = $1', [userId]);
-    // Add similar DELETE statements for other dependent tables
-    await client.query('DELETE FROM "users" WHERE id = $1', [userId]);
-    await client.query('COMMIT'); // Commit transaction if successful
+  analytics.track({
+    userId: String(req.user.id),
+    event: 'User Deleted',
+    properties: { userId, deletedAt: new Date().toISOString() }
+  });
 
-    analytics.track({
-      userId: String(userId),
-      event: 'User Deleted',
-      properties: {
-        deletedAt: new Date().toISOString(),
-      }
-    });
-
-    res.status(200).json({ success: true, message: "User deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting user:", error);
-    await client.query('ROLLBACK'); // Rollback transaction on error
-    res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
+  res.status(200).json({ success: true, message: 'User deleted successfully' });
 });
 
-module.exports = { signup, login, getAllUsers, forgotPassword, resetPassword, logout, getUserDetails, editUser, deleteUser, addUser };
+module.exports = {
+  signup,
+  login,
+  logout,
+  getAllUsers,
+  addUser,
+  forgotPassword,
+  resetPassword,
+  getUserDetails,
+  editUser,
+  deleteUser,
+};

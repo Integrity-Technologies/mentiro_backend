@@ -2,12 +2,56 @@ const { saveQuestion, createQuestionTable } = require('../models/question');
 const { saveAnswer, createAnswersTable } = require('../models/answer');
 const analytics = require('../segment/segmentConfig');
 const { client } = require('../db/index');
+const catchAsyncErrors = require('../middleware/catchAsyncErrors');
+const { sendErrorResponse } = require("../utils/res_error");
+const { validationResult, body } = require('express-validator');
+
+// Validate Question Input
+const validateQuestionInput = [
+  body('question_text')
+    .notEmpty().withMessage('Question text is required')
+    .isString().withMessage('Question text must be a string')
+    .trim()
+    .escape(),
+  
+  body('difficulty_level')
+    .notEmpty().withMessage('Difficulty level is required')
+    .isString().withMessage('Difficulty level must be a string')
+    .isIn(['easy', 'medium', 'hard']).withMessage('Difficulty level must be one of easy, medium, hard')
+    .trim()
+    .escape(),
+
+  body('category_names')
+    .isArray({ min: 1 }).withMessage('Category names must be an array with at least one category')
+    .custom((categories) => {
+      if (categories.some(name => typeof name !== 'string' || name.trim() === '')) {
+        throw new Error('Each category name must be a non-empty string');
+      }
+      return true;
+    }),
+
+  body('options')
+    .isArray({ min: 1 }).withMessage('Options must be an array with at least one option')
+    // .custom((options) => {
+    //   if (options.some(option => typeof option.option_text !== 'string' || typeof option.is_correct !== 'boolean')) {
+    //     throw new Error('Each option must have a string "option_text" and a boolean "is_correct"');
+    //   }
+    //   return true;
+    // }),
+];
+
+const handleValidationErrors = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  next();
+};
 
 // Function to find category IDs by names
 const findCategoryIdsByName = async (categoryNames) => {
   try {
     const categoryIds = [];
-
     for (const categoryName of categoryNames) {
       const result = await client.query('SELECT id FROM "categories" WHERE category_name = $1', [categoryName]);
       if (result.rows.length > 0) {
@@ -16,331 +60,243 @@ const findCategoryIdsByName = async (categoryNames) => {
         throw new Error(`Category '${categoryName}' not found`);
       }
     }
-
     return categoryIds;
   } catch (error) {
+    console.error('Error finding category IDs by name:', error);
     throw error;
   }
 };
 
-const createQuestionAndAnswer = async (req, res) => {
-  try {
-    await createQuestionTable();
-    await createAnswersTable();
+// Create Question and Answer
+const createQuestionAndAnswer = [
+  ...validateQuestionInput,
+  handleValidationErrors,
+  catchAsyncErrors(async (req, res) => {
+  await createQuestionTable();
+  await createAnswersTable();
 
-    const { question_text, difficulty_level, category_names, options, question_type } = req.body;
+  const { question_text, difficulty_level, category_names, options, question_type } = req.body;
 
-    // Validate request data
-    if (!question_text || !difficulty_level || !category_names || !options) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    // Find category IDs by names
-    const categoryIds = await findCategoryIdsByName(category_names);
-
-    // Check if the question already exists
-    const existingQuestion = await client.query('SELECT id FROM questions WHERE question_text = $1', [question_text]);
-    let questionId;
-    if (existingQuestion.rows.length > 0) {
-      // If the question already exists, use its ID
-      questionId = existingQuestion.rows[0].id;
-    } else {
-      // Save question if it does not exist
-      const questionData = {
-        question_text,
-        // question_type: 'MCQS', // Assuming multiple-choice questions
-        question_type,
-        difficulty_level,
-        categories: categoryIds,
-        created_by: req.user.id, // Assuming user ID is extracted from authentication middleware
-        is_active: true,
-        is_custom: false,
-      };
-      const newQuestion = await saveQuestion(questionData);
-      questionId = newQuestion.id;
-    }
-
-     // Format options array
-    const formattedOptions = options.map(option => ({
-      is_correct: option.is_correct,
-      option_text: option.option_text
-    }));
-
-    // Prepare answer data
-    const answerData = {
-      question_id: questionId,
-      options: formattedOptions, // Assuming options are provided in the request body
-      created_by: req.user.id, // Assuming user ID is extracted from authentication middleware
-    };
-
-    analytics.track({
-      userId: req.user.id.toString(),
-      event: 'Question Created',
-      properties: {
-        question_id: questionId,
-        question_text,
-        difficulty_level,
-        categories: category_names,
-      }
-    });
-
-    // Save answer
-    const answer = await saveAnswer(answerData);
-
-    res.status(201).json({ question_id: questionId, answer });
-  } catch (error) {
-    console.error('Error creating question and answer:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+  // Check if the question already exists
+  const existingQuestion = await client.query('SELECT id FROM questions WHERE question_text = $1', [question_text]);
+  if (existingQuestion.rows.length > 0) {
+    return sendErrorResponse(res, 400, "Question with the same text already exists");
   }
-};
 
-// get ALL questions
-const getAllQuestion = async (req, res) => {
-    try {
-      const getAllQuery = `
-              SELECT * FROM questions;
-          `;
-      const result = await client.query(getAllQuery);
-      const questions = result.rows;
-      // If no tests found, return an empty array
-    if (questions.length === 0) {
-      return res.status(400).json({ error: "Questions not found" });;
-    }
+  // Find category IDs by names
+  const categoryIds = await findCategoryIdsByName(category_names);
 
-    // Fetch category names for each test
-    const categoriesMap = new Map(); // Initialize an empty map for category names
-    for (const test of questions) {
-      const categoryIds = test.categories.filter(Boolean); // Filter out null or undefined values
-      if (categoryIds.length > 0) {
-        const categoryResult = await client.query('SELECT id, category_name FROM "categories" WHERE id = ANY($1)', [categoryIds]);
-        categoryResult.rows.forEach(category => {
-          categoriesMap.set(category.id, category.category_name);
-        });
-      }
-    }
+  // Save question
+  const questionData = {
+    question_text,
+    question_type,
+    difficulty_level,
+    categories: categoryIds,
+    created_by: req.user.id,
+    is_active: true,
+    is_custom: false,
+  };
+  const newQuestion = await saveQuestion(questionData);
+  const questionId = newQuestion.id;
 
-    const QuestionsWithNames = questions.map(question => ({
-      ...question,
-      categories: question.categories.filter(Boolean).map(categoryId => categoriesMap.get(categoryId))
-    }));
+  // Format options array
+const formattedOptions = options.map(option => ({
+  is_correct: option.is_correct,
+  option_text: typeof option.option_text === 'string' ? option.option_text.trim() : option.option_text // Trim if it's a string
+}));
 
-    // analytics.track({
-    //   userId: req.user.id.toString(),
-    //   event: 'Questions Fetched',
-    //   properties: {
-    //     question_count: QuestionsWithNames.length,
-    //   }
-    // });
-
-    res.status(200).json(QuestionsWithNames);
-      // res.status(200).json(questions);
-    } catch (error) {
-      console.error("Error fetching questions:", error);
-      res.status(500).json({ error: "Could not fetch questions" });
-    }
+  // Prepare answer data
+  const answerData = {
+    question_id: questionId,
+    options: formattedOptions,
+    created_by: req.user.id,
   };
 
-// Delete question
-const deleteQuestion = async (req, res) => {
-  const { id } = req.params; // Access ID from req.params
-
-  try {
-    // Check if the question exists
-    const checkQuery = `
-      SELECT * FROM questions 
-      WHERE id = $1;
-    `;
-    const checkValues = [id];
-    const checkResult = await client.query(checkQuery, checkValues);
-
-    // If the question does not exist, return 404
-    if (checkResult.rows.length === 0) {
-      return res.status(404).json({ error: "Question not found" });
+  analytics.track({
+    userId: String(req.user?.id || 'anonymous'),
+    event: 'Question Created',
+    properties: {
+      question_id: questionId,
+      question_text,
+      difficulty_level,
+      categories: category_names,
     }
+  });
 
-    // Use the ID to delete the question
-    const deleteQuery = `
-      DELETE FROM questions 
-      WHERE id = $1 
-      RETURNING *;
-    `;
-    const values = [id];
+  // Save answer
+  const answer = await saveAnswer(answerData);
 
-    // **Cascading Delete with `ON DELETE CASCADE`**
-    await client.query('BEGIN'); // Start transaction
-    // Delete answers related to the question
-    await client.query(
-      'DELETE FROM answers WHERE question_id = $1',
-      [id]
-    );
-    // Delete the question itself
-    const result = await client.query(deleteQuery, values);
-    await client.query('COMMIT'); // Commit transaction if successful
+  res.status(201).json({ success: true, message: "Question created successfully", question_id: questionId, answer });
+})
+];
 
-    const deletedQuestion = result.rows[0];
+// Get All Questions
+const getAllQuestion = catchAsyncErrors(async (req, res) => {
+  const result = await client.query('SELECT * FROM questions');
+  const questions = result.rows;
 
-    analytics.track({
-      userId: req.user.id.toString(),
-      event: 'Question Deleted',
-      properties: {
-        question_id: id,
-        question_text: deletedQuestion.question_text,
-      }
-    });
-
-    res.status(200).json({ message: "Question deleted successfully", deletedQuestion });
-  } catch (error) {
-    console.error("Error deleting question:", error);
-    await client.query('ROLLBACK'); // Rollback transaction on error
-    res.status(500).json({ error: "Could not delete question" });
+  if (questions.length === 0) {
+    return sendErrorResponse(res, 400, "Questions not found");
   }
-};
 
- // Update Question
- const updateQuestion = async (req, res) => {
+  const categoriesMap = new Map();
+  for (const question of questions) {
+    const categoryIds = question.categories.filter(Boolean);
+    if (categoryIds.length > 0) {
+      const categoryResult = await client.query('SELECT id, category_name FROM "categories" WHERE id = ANY($1)', [categoryIds]);
+      categoryResult.rows.forEach(category => {
+        categoriesMap.set(category.id, category.category_name);
+      });
+    }
+  }
+
+  const QuestionsWithNames = questions.map(question => ({
+    ...question,
+    categories: question.categories.filter(Boolean).map(categoryId => categoriesMap.get(categoryId))
+  }));
+
+  analytics.track({
+    userId: String(req.user?.id || 'anonymous'),
+    event: 'Questions Fetched',
+    properties: {
+      question_count: QuestionsWithNames.length,
+    }
+  });
+
+  res.status(200).json(QuestionsWithNames);
+});
+
+// Delete Question
+const deleteQuestion = catchAsyncErrors(async (req, res) => {
   const { id } = req.params;
-  const { question_text, difficulty_level, category_names } = req.body;
 
-  try {
-    // Fetch the existing question data from the database
-    // const existingQuestion = await getQuestionById(id);
-    const query = `
-    SELECT * FROM questions
-    WHERE id = $1;
+  const checkResult = await client.query('SELECT * FROM questions WHERE id = $1', [id]);
+
+  if (checkResult.rows.length === 0) {
+    return sendErrorResponse(res, 404, "Question not found");
+  }
+
+  await client.query('BEGIN');
+  await client.query('DELETE FROM answers WHERE question_id = $1', [id]);
+  const result = await client.query('DELETE FROM questions WHERE id = $1 RETURNING *', [id]);
+  await client.query('COMMIT');
+
+  const deletedQuestion = result.rows[0];
+
+  analytics.track({
+    userId: String(req.user?.id || 'anonymous'),
+    event: 'Question Deleted',
+    properties: {
+      question_id: id,
+      question_text: deletedQuestion.question_text,
+    }
+  });
+
+  res.status(200).json({ message: "Question deleted successfully", deletedQuestion });
+});
+
+// Update Question
+const updateQuestion = [ 
+  ...validateQuestionInput,
+  handleValidationErrors,
+  catchAsyncErrors(async (req, res) => {
+  const { id } = req.params;
+  const { question_text, difficulty_level, category_names, options } = req.body;
+
+  const questionResult = await client.query('SELECT * FROM questions WHERE id = $1', [id]);
+
+  if (questionResult.rows.length === 0) {
+    return sendErrorResponse(res, 404, "Question not found");
+  }
+
+  const question = questionResult.rows[0];
+  const updatedCategoryIds = await findCategoryIdsByName(category_names);
+
+  // Check if there's anything to update
+  // if (
+  //   question_text === question.question_text &&
+  //   difficulty_level === question.difficulty_level &&
+  //   JSON.stringify(updatedCategoryIds.sort()) === JSON.stringify(question.categories.sort()) &&
+  //   JSON.stringify(options.sort((a, b) => a.option_text.localeCompare(b.option_text))) === JSON.stringify(question.options.sort((a, b) => a.option_text.localeCompare(b.option_text)))
+  // ) {
+  //   return sendErrorResponse(res, 400, "No changes to update");
+  // }
+
+  // Update question details
+  const updateQuery = `
+    UPDATE questions 
+    SET 
+      question_text = $1,
+      difficulty_level = $2,
+      categories = $3,
+      updated_date = CURRENT_TIMESTAMP
+    WHERE id = $4
+    RETURNING *;
   `;
-  const questionID = await client.query(query, [id]);
+  const values = [question_text, difficulty_level, updatedCategoryIds, id];
+  const result = await client.query(updateQuery, values);
+  const updatedQuestion = result.rows[0];
 
-  if (questionID.rows.length === 0) {
-    return res.status(404).json({ error: "Question not found" });
-  }
+  // Update options
+  await client.query('DELETE FROM answers WHERE question_id = $1', [id]);
 
-    // Find category IDs for the updated category names
-    const updatedCategoryIds = await findCategoryIdsByName(category_names);
+  const formattedOptions = options.map(option => ({
+    is_correct: option.is_correct,
+    option_text: option.option_text.trim().escape()
+  }));
 
-    // Compare the updated fields with existing data
-    if (
-      question_text === questionID.question_text &&
-      difficulty_level === questionID.difficulty_level &&
-      JSON.stringify(updatedCategoryIds.sort()) === JSON.stringify(questionID.categories.sort())
-    ) {
-      return res.status(400).json({ error: "No changes to update" });
+  const answerData = {
+    question_id: id,
+    options: formattedOptions,
+    created_by: req.user.id,
+  };
+  await saveAnswer(answerData);
+
+  analytics.identify({
+    userId: String(req.user?.id || 'anonymous'),
+    traits: {
+      updated_question_id: updatedQuestion.id,
+      updated_question_text: updatedQuestion.question_text,
     }
+  });
 
-    const updateQuery = `
-      UPDATE questions 
-      SET 
-          question_text = $1,
-          difficulty_level = $2,
-          categories = $3,
-          updated_date = CURRENT_TIMESTAMP
-      WHERE id = $4
-      RETURNING *;
-    `;
-    const values = [question_text, difficulty_level, updatedCategoryIds, id];
-
-    const result = await client.query(updateQuery, values);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Question not found" });
+  analytics.track({
+    userId: String(req.user?.id || 'anonymous'),
+    event: 'Question Updated',
+    properties: {
+      question_id: updatedQuestion.id,
+      question_text,
+      difficulty_level,
+      categories: category_names,
+      updated_by: id,
     }
+  });
 
-    const updatedQuestion = result.rows[0];
+  res.status(200).json(updatedQuestion);
+})
+]
 
-    analytics.identify({
-      userId: req.user.id.toString(),
-      traits: {
-        updated_question_id: updatedQuestion.id,
-        updated_question_text: updatedQuestion.question_text,
-      }
-    });
-
-    analytics.track({
-      userId: req.user.id.toString(),
-      event: 'Question Updated',
-      properties: {
-        question_id: updatedQuestion.id,
-        question_text,
-        difficulty_level,
-        categories: category_names,
-        updated_by:id
-      }
-    });
-
-    res.status(200).json(updatedQuestion);
-  } catch (error) {
-    console.error("Error updating question:", error);
-    res.status(500).json({ error: "Could not update question" });
-  }
-};
-
- // Get question by ID
- const getQuestionById = async (req, res) => {
+// Get Question by ID
+const getQuestionById = catchAsyncErrors(async (req, res) => {
   const { id } = req.params;
 
-  try {
-    // Query to fetch the question by ID
-    const questionQuery = `
-      SELECT * FROM questions
-      WHERE id = $1;
-    `;
-    const questionResult = await client.query(questionQuery, [id]);
+  const questionResult = await client.query('SELECT * FROM questions WHERE id = $1', [id]);
 
-    if (questionResult.rows.length === 0) {
-      return res.status(404).json({ error: "Question not found" });
-    }
-
-    const question = questionResult.rows[0];
-
-    // Query to fetch the answers for the question
-    const answerQuery = `
-      SELECT * FROM answers
-      WHERE question_id = $1;
-    `;
-    const answerResult = await client.query(answerQuery, [id]);
-
-    // Combine question and answers in the response
-    const response = {
-      ...question,
-      options: answerResult.rows.length > 0 ? answerResult.rows[0].options : []
-    };
-
-    res.status(200).json(response);
-  } catch (error) {
-    console.error("Error fetching question by ID:", error);
-    res.status(500).json({ error: "Could not fetch question by ID" });
+  if (questionResult.rows.length === 0) {
+    // return res.status(404).json({ error: "Question not found" });
+    return sendErrorResponse(res, 404, "Question not found");
   }
-};
 
-// const getAllQuestionByCategoryandDifficultyLevel = async (req, res) => {
-//   try {
-//     // Parse category names and difficulty levels from request body
-//     const  categories  = req.body;
-//     console.log(categories);
-//     // Initialize an array to store results
-//     const response = [];
+  const question = questionResult.rows[0];
+  const answerResult = await client.query('SELECT * FROM answers WHERE question_id = $1', [id]);
 
-//     // Loop through each category
-//     for (const category of categories) {
-//       // Query the database to fetch questions based on category and difficulty level
-//       const query = `
-//         SELECT * FROM questions
-//         WHERE category_name = $1 AND difficulty_level = $2;
-//       `;
-//       const values = [category.category_name, category.difficulty_level];
-//       const result = await client.query(query, values);
+  const response = {
+    ...question,
+    options: answerResult.rows.length > 0 ? answerResult.rows[0].options : []
+  };
 
-//       // Push category along with questions to response array
-//       response.push({
-//         category_name: category.category_name,
-//         questions: result.rows
-//       });
-//     }
+  res.status(200).json(response);
+});
 
-//     res.status(200).json(response);
-//   } catch (error) {
-//     console.error("Error fetching questions:", error);
-//     res.status(500).json({ error: "Could not fetch questions" });
-//   }
-// };
+module.exports = { createQuestionAndAnswer, getAllQuestion, deleteQuestion, updateQuestion, getQuestionById };
 
-module.exports = { createQuestionAndAnswer, getAllQuestion, deleteQuestion, updateQuestion,getQuestionById };

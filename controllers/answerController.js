@@ -41,6 +41,7 @@ const getAllAnswers = async (req, res, next) => {
 
     analytics.track({
       // userId: req.user.id.toString(),  // we have to test that user id is still access in this function while calling from another controller
+      userId: String(req.user?.id || 'anonymous'),
       event: 'Answers Fetched',
       properties: {
         question_count: answers.length,

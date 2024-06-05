@@ -39,16 +39,7 @@ const saveQuestion = async (questionData) => {
     is_custom
   } = questionData;
   try {
-
-    // Check if the question with the same text already exists
-    const checkQuery = `
-      SELECT * FROM questions WHERE question_text = $1
-    `;
-    const checkResult = await client.query(checkQuery, [question_text]);
-    if (checkResult.rows.length > 0) {
-        return { error: 'Question with the same text already exists' };
-    }
-
+    
     const insertQuery = `
       INSERT INTO questions (
         question_text,

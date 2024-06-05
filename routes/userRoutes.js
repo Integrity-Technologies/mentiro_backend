@@ -14,7 +14,7 @@ router.post("/password/forgot", forgotPassword); // tested in postman successful
 router.put("/password/reset/:token", resetPassword); // tested in postman successfully
 router.get("/logout", logout); // tested in postman successfully
 
-router.get("/me",isAuthenticatedUser, getUserDetails); // tested in postman successfully
+router.get("/me",verifyTokenAndExtractUserId, getUserDetails); // tested in postman successfully
 
 router.put("/update/:id",isAuthenticatedUser,editUser); // tested in postman successfully
 router.delete("/delete/:id",isAuthenticatedUser,deleteUser); // tested in postman successfully

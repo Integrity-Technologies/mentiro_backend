@@ -10,12 +10,14 @@ CREATE TABLE IF NOT EXISTS results (
     questions JSONB[],
     score INTEGER,
     assessment_id INTEGER,
+    company_id INTEGER,
     started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (candidate_id) REFERENCES candidates(id),
     FOREIGN KEY (test_id) REFERENCES tests(id),
-    FOREIGN KEY (assessment_id) REFERENCES assessments(id)
+    FOREIGN KEY (assessment_id) REFERENCES assessments(id),
+    FOREIGN KEY (company_id) REFERENCES companies(id)
 );
 `;
 
@@ -39,17 +41,9 @@ const saveResult = async (resultData) => {
     questions,
     score,
     assessment_id,
+    company_id
   } = resultData;
   try {
-
-    // check if the Result with the same candidate id and test id already exists
-//     const checkQuery = `
-//   SELECT * FROM results WHERE test_id = $1 AND candidate_id = $2
-// `;
-// const checkResult = await client.query(checkQuery, [test_id, candidate_id]);
-// if (checkResult.rows.length > 0) {
-//     return { error: 'Result with the same candidate id and test id already exists' };
-// }
 
     const insertQuery = `
       INSERT INTO results (
@@ -57,9 +51,10 @@ const saveResult = async (resultData) => {
         test_id,
         questions,
         score,
-        assessment_id
+        assessment_id,
+        company_id
       )
-      VALUES ($1, $2, $3, $4, $5)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *;
     `;
     const values = [
@@ -68,6 +63,7 @@ const saveResult = async (resultData) => {
       questions,
       score,
       assessment_id,
+      company_id
     ];
     const result = await client.query(insertQuery, values);
     console.log("Result data saved successfully");

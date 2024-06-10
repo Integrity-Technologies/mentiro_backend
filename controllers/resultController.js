@@ -69,7 +69,11 @@ const submitAnswer = catchAsyncErrors(async (req, res) => {
   const { resultId, question_id, option } = req.body;
   // await validateAnswerInput(res, resultId, question_id, option);
   // Validate test input
-  const validationError =  await validateAnswerInput(resultId, question_id, option);
+
+ // Ensure question_id is a number
+ const questionId = parseInt(question_id, 10);
+
+  const validationError =  await validateAnswerInput(resultId, questionId, option);
   if (validationError) {
     return sendErrorResponse(res, 400, validationError);
   }
@@ -80,9 +84,6 @@ const submitAnswer = catchAsyncErrors(async (req, res) => {
   if (!result) {
     return sendErrorResponse(res, 404, "Result not found");
   }
-
- // Parse question IDs as numbers
-const questionId = parseInt(questionIdString, 10);
 
   result.questions.push({
     question_id: questionId,
@@ -131,11 +132,20 @@ const createResult = catchAsyncErrors(async (req, res) => {
   const testId = await validateId(test_id, 'SELECT id FROM "tests" WHERE id = $1', `Test '${test_id}' not found`);
   const assessmentId = await validateId(assessment_id, 'SELECT id FROM "assessments" WHERE id = $1', `Assessment '${assessment_id}' not found`);
 
+  // Fetch the company_id from the assessment
+  const assessmentQuery = 'SELECT company_id FROM assessments WHERE id = $1';
+  const assessmentResult = await client.query(assessmentQuery, [assessmentId]);
+  if (assessmentResult.rows.length === 0) {
+    return sendErrorResponse(res, 400, `Assessment '${assessment_id}' not found`);
+  }
+  const companyId = assessmentResult.rows[0].company_id;
+
   const resultData = {
     candidate_id: candidateId,
     test_id: testId,
     questions: [],
     assessment_id: assessmentId,
+    company_id: companyId,
     score: null // Store score as null by default
   };
 
@@ -294,13 +304,17 @@ const getResultsByUser = catchAsyncErrors(async (req, res) => {
 
     // Group results by candidate id
     const resultsByCandidate = results.rows.reduce((acc, result) => {
-      const { candidate_id, ...rest } = result;
+      const { candidate_id,company_id, ...rest } = result;
       const candidate = acc[candidate_id] || {
         id: candidate_id,
         candidate_name: candidatesMap.get(candidate_id).name,
         candidate_email: candidatesMap.get(candidate_id).email,
+        companies: new Set(),
         assessments: [],
       };
+
+      // Add company ID to the candidate's company list
+      candidate.companies.add(company_id);
 
       // Find or create assessment
       let assessmentIndex = candidate.assessments.findIndex(assessment => assessment.name === assessmentsMap.get(result.assessment_id).assessment_name);
@@ -348,6 +362,8 @@ const getResultsByUser = catchAsyncErrors(async (req, res) => {
         assessment.assessment_score = totalScore;
         assessment.assessment_percentage = calculatePercentage(totalScore, totalTests * 100);
       });
+      // Convert Set of companies to an array
+      candidate.companies = Array.from(candidate.companies);
     });
 
     // Filter out assessments without results
@@ -364,6 +380,7 @@ const getResultsByUser = catchAsyncErrors(async (req, res) => {
               id: result.candidate_id,
               candidate_name: candidatesMap.get(result.candidate_id).name,
               candidate_email: candidatesMap.get(result.candidate_id).email,
+              companies: new Set(),
               assessments: [],
             };
           }
@@ -396,7 +413,7 @@ const getResultsByUser = catchAsyncErrors(async (req, res) => {
     // Track the getResultsByUser event in Segment
     analytics.track({
       userId: String(req.user.id),
-      event: 'Get Results By User',
+      event: 'Results viewed By User',
       properties: {
         count: results.rows.length,
         fetched_at: new Date().

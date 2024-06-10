@@ -1,3 +1,4 @@
+// job role controller 
 const { client } = require('../db/index.js');
 const { saveJobRole } = require('../models/jobRole');
 

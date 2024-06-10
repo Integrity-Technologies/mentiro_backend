@@ -1,3 +1,4 @@
+// Work Arrangement controller
 const { client } = require('../db/index.js');
 const { saveWorkArrangement } = require('../models/workArrangement');
 

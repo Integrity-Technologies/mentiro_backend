@@ -1,3 +1,4 @@
+// category controller 
 const { createCategoryTable, saveCategory } = require("../models/category.js");
 const { client } = require("../db/index.js");
 const analytics = require('../segment/segmentConfig');

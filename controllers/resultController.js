@@ -1,4 +1,4 @@
-// controllers/resultController.js
+// controllers/resultController
 const {
   createResultsTable,
   saveResult,

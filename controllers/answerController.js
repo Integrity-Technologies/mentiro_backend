@@ -1,4 +1,4 @@
-// controllers/answerController.js
+// controllers/answerController 
 const {getAnswerByQuestionId} = require("../models/answer");
 const analytics = require('../segment/segmentConfig');
 const { client } = require("../db/index.js");

@@ -38,7 +38,96 @@ const findCompanyIdByName = async (companyName) => {
 
 
  const QUESTION_TIME_PER_MINUTE = 1; // Assuming each question takes 1 minute
- const findTestIdsByName = async (tests) => {
+
+//  correct findTestIdsByName below except exceed questions validation
+//  const findTestIdsByName = async (tests) => {
+//   try {
+//     const processedTests = [];
+
+//     for (const test of tests) {
+//       const { test_name, test_difficulty } = test;
+
+//       // Find test details by name (including categories)
+//       const testResult = await client.query('SELECT id, categories FROM "tests" WHERE test_name = $1', [test_name]);
+
+//       if (testResult.rows.length === 0) {
+//         throw new Error(`Test '${test_name}' not found`);
+//       }
+
+//       // const testId = testResult.rows[0].id;
+//       const testId = testResult.rows[0].id
+//       const categories = testResult.rows[0].categories;
+
+//       // Find questions based on categories
+//       const questionsQuery = `
+//         SELECT *
+//         FROM questions
+//         WHERE categories && $1::integer[]
+//       `;
+//       const questionsValues = [categories];
+//       const questionsResult = await client.query(questionsQuery, questionsValues);
+//       console.log('Categories:', categories);
+//       console.log('Questions Result:', questionsResult.rows);
+
+//       // Ensure questionsResult.rows is iterable (i.e., an array)
+//       if (!Array.isArray(questionsResult.rows)) {
+//         throw new Error('Unexpected result: questionsResult.rows is not an array');
+//       }
+
+//       // Prepare a dictionary to store filtered questions by difficulty
+//       const filteredQuestions = {
+//         easy: [],
+//         medium: [],
+//         hard: [],
+//       };
+
+//       // Filter questions based on difficulty and user request (embedded in test_difficulty)
+//       const addedQuestionsCount = { easy: 0, medium: 0, hard: 0 }; // Track the number of questions added for each difficulty
+//       for (const question of questionsResult.rows) {
+//         // console.log(question[0] + " this is question from for loop");
+//         const { difficulty_level } = question;
+//         console.log(difficulty_level);
+//         const requestedCount = test_difficulty[difficulty_level] || 0;
+//         console.log(requestedCount);
+//         if (addedQuestionsCount[difficulty_level] < requestedCount) {
+//           filteredQuestions[difficulty_level].push(question);
+//           addedQuestionsCount[difficulty_level]++;
+//         }
+//       }
+
+//       // Calculate total questions and time based on filtered results
+//       const totalQuestions = Object.values(filteredQuestions).reduce((sum, arr) => sum + arr.length, 0);
+//       let totalTime = 0;
+//       if (totalQuestions > 0) {
+//         totalTime = totalQuestions * QUESTION_TIME_PER_MINUTE; // Using the defined constant
+//       }
+
+//       // Prepare test data object with filtered questions
+//       const testData = {
+//         test_name,
+//         test_id:testId,
+//         test_difficulty,
+//         questions: Object.values(filteredQuestions).flat().map(question => ({
+//           question_id: question.id,
+//         })),
+//         total_questions: totalQuestions,
+//         total_time: totalTime,
+//       };
+
+//       console.log(testData);
+//       console.log(filteredQuestions);
+//       processedTests.push(testData);
+//     }
+
+//     return processedTests;
+//   } catch (error) {
+//     throw error;
+//   }
+// };
+
+
+// by chatgpt with additional question exceed validation
+const findTestIdsByName = async (tests) => {
   try {
     const processedTests = [];
 
@@ -52,8 +141,7 @@ const findCompanyIdByName = async (companyName) => {
         throw new Error(`Test '${test_name}' not found`);
       }
 
-      // const testId = testResult.rows[0].id;
-      const testId = testResult.rows[0].id
+      const testId = testResult.rows[0].id;
       const categories = testResult.rows[0].categories;
 
       // Find questions based on categories
@@ -79,14 +167,31 @@ const findCompanyIdByName = async (companyName) => {
         hard: [],
       };
 
+      // Count available questions for each difficulty level
+      const availableQuestionsCount = {
+        easy: 0,
+        medium: 0,
+        hard: 0,
+      };
+
+      for (const question of questionsResult.rows) {
+        availableQuestionsCount[question.difficulty_level]++;
+      }
+
+      // Validate requested questions count
+      for (const difficulty in test_difficulty) {
+        if (test_difficulty[difficulty] > availableQuestionsCount[difficulty]) {
+          throw new Error(
+            `Requested ${test_difficulty[difficulty]} ${difficulty} questions for test '${test_name}', but only ${availableQuestionsCount[difficulty]} available.`
+          );
+        }
+      }
+
       // Filter questions based on difficulty and user request (embedded in test_difficulty)
       const addedQuestionsCount = { easy: 0, medium: 0, hard: 0 }; // Track the number of questions added for each difficulty
       for (const question of questionsResult.rows) {
-        // console.log(question[0] + " this is question from for loop");
         const { difficulty_level } = question;
-        console.log(difficulty_level);
         const requestedCount = test_difficulty[difficulty_level] || 0;
-        console.log(requestedCount);
         if (addedQuestionsCount[difficulty_level] < requestedCount) {
           filteredQuestions[difficulty_level].push(question);
           addedQuestionsCount[difficulty_level]++;
@@ -103,7 +208,7 @@ const findCompanyIdByName = async (companyName) => {
       // Prepare test data object with filtered questions
       const testData = {
         test_name,
-        test_id:testId,
+        test_id: testId,
         test_difficulty,
         questions: Object.values(filteredQuestions).flat().map(question => ({
           question_id: question.id,
@@ -122,9 +227,6 @@ const findCompanyIdByName = async (companyName) => {
     throw error;
   }
 };
-
-
-
 
 
 const getAssessmentByLink = catchAsyncErrors(async (req, res) => {
@@ -158,15 +260,13 @@ const getAssessmentByLink = catchAsyncErrors(async (req, res) => {
   }
 });
 
-
-const findOrCreateJobRole = async (name) => {
+const findJobRole = async (name) => {
   try {
     const result = await client.query('SELECT id FROM job_roles WHERE name = $1', [name]);
     if (result.rowCount > 0) {
       return result.rows[0].id;
     } else {
-      const newJobRoleResult = await client.query('INSERT INTO job_roles (name) VALUES ($1) RETURNING id', [name]);
-      return newJobRoleResult.rows[0].id;
+      throw new Error('Invalid Job Role');
     }
   } catch (error) {
     throw error;
@@ -215,7 +315,7 @@ const createAssessment = async (req, res, next) => {
 
     console.log(processedTests);
 
-    const jobRoleId = await findOrCreateJobRole(job_role);
+    const jobRoleId = await findJobRole(job_role);
     const workArrangementId = await findWorkArrangementIdByName(work_arrangement);
     const jobLocationId = await findJobLocationIdByName(job_location);
 

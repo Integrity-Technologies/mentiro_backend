@@ -1,3 +1,4 @@
+// job location controller
 const { client } = require('../db/index.js');
 const { saveJobLocation } = require('../models/jobLocation');
 

@@ -304,7 +304,7 @@ const getResultsByUser = catchAsyncErrors(async (req, res) => {
 
     // Group results by candidate id
     const resultsByCandidate = results.rows.reduce((acc, result) => {
-      const { candidate_id,company_id, ...rest } = result;
+      const { candidate_id,company_id,started_at, ...rest } = result;
       const candidate = acc[candidate_id] || {
         id: candidate_id,
         candidate_name: candidatesMap.get(candidate_id).name,
@@ -323,6 +323,7 @@ const getResultsByUser = catchAsyncErrors(async (req, res) => {
         candidate.assessments.push({
           name: assessmentsMap.get(result.assessment_id).assessment_name,
           tests: [],
+          started_at: started_at
         });
       }
 
@@ -392,6 +393,7 @@ const getResultsByUser = catchAsyncErrors(async (req, res) => {
             candidateAssessments.push({
               name: assessmentName,
               tests: [],
+              started_at: result.started_at,
             });
           }
 

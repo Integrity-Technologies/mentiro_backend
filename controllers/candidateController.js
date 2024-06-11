@@ -257,6 +257,11 @@ const getAllUserCandidate = catchAsyncErrors(async (req, res) => {
       FROM "candidates" 
       WHERE id = ANY($1)
     `;
+    // const candidateQuery = `
+    //   SELECT id, first_name, last_name, email, is_active, created_at 
+    //   FROM candidates 
+    //   WHERE id = ANY($1)
+    // `;
     const candidateResult = await client.query(candidateQuery, [candidateIds]);
 
     const candidates = candidateResult.rows;

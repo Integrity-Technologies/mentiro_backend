@@ -17,7 +17,7 @@ router.get("/allCandidate",verifyTokenAndExtractUserId, getAllCandidate); // tes
 router.get("/user/candidates",verifyTokenAndExtractUserId, getAllUserCandidate );
 
 // Create a new candidate
-router.post("/create", createCandidate); // tested in postman successfully
+router.post("/create",verifyTokenAndExtractUserId, createCandidate); // tested in postman successfully
 
 // Edit an existing candidate
 router.put("/edit/:id", editCandidateById); // tested in postman successfully

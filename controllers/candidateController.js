@@ -47,16 +47,16 @@ const createCandidate = [
 
     await createCandidateTable();
 
+    // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
+
     // Check if a candidate with the same email already exists
     const existingCandidate = await client.query('SELECT * FROM "candidates" WHERE email = $1', [candidateData.email]);
     if (existingCandidate.rows.length > 0) {
       return sendErrorResponse(res, 400, 'Candidate with this email already exists');
-    }
-
-    // Check if a candidate with the same first name and last name already exists
-    const existingCandidateByName = await getCandidateByFullName(candidateData.first_name, candidateData.last_name);
-    if (existingCandidateByName) {
-      return sendErrorResponse(res, 400, 'Candidate with this first name and last name already exists');
     }
 
     try {
@@ -88,7 +88,7 @@ const createCandidate = [
       res.status(201).json(newCandidate);
     } catch (error) {
       console.error("Error occurred:", error);
-      res.status(500).json({ error: "An internal server error occurred" });
+      res.status(500).json({ error: error.message });
     }
   })
 ];
@@ -101,16 +101,16 @@ const editCandidateById = [
     const candidateId = req.params.id;
     const updatedData = req.body;
 
+    // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
+
     // Check if the candidate exists
     const existingCandidate = await client.query('SELECT * FROM candidates WHERE id = $1', [candidateId]);
     if (existingCandidate.rows.length === 0) {
       return sendErrorResponse(res, 404, "Candidate not found");
-    }
-
-    // Check if a candidate with the same first name and last name already exists
-    const existingCandidateByName = await getCandidateByFullName(updatedData.first_name, updatedData.last_name);
-    if (existingCandidateByName) {
-      return sendErrorResponse(res, 400, 'Candidate with this first name and last name already exists');
     }
 
     try {
@@ -149,7 +149,7 @@ const editCandidateById = [
       res.status(200).json({ success: true, message: "Candidate details updated successfully" });
     } catch (error) {
       console.error("Error occurred:", error);
-      res.status(500).json({ error: "An internal server error occurred" });
+      res.status(500).json({ error: error.message });
     }
   })
 ];
@@ -220,6 +220,13 @@ const getCandidateById = catchAsyncErrors(async (req, res) => {
 // Get all candidates associated with a user, including company IDs
 const getAllUserCandidate = catchAsyncErrors(async (req, res) => {
   try {
+
+    // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
+
     const userId = req.user.id; // Assume userId is extracted from the token
 
     // Fetch assessments created by the user

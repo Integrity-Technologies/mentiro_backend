@@ -20,10 +20,10 @@ router.get("/user/candidates",verifyTokenAndExtractUserId, getAllUserCandidate )
 router.post("/create",verifyTokenAndExtractUserId, createCandidate); // tested in postman successfully
 
 // Edit an existing candidate
-router.put("/edit/:id", editCandidateById); // tested in postman successfully
+router.put("/edit/:id",verifyTokenAndExtractUserId, editCandidateById); // tested in postman successfully
 
 // Delete a candidate
-router.delete("/delete/:id", deleteCandidateById); // tested in postman successfully
+router.delete("/delete/:id",verifyTokenAndExtractUserId, deleteCandidateById); // tested in postman successfully
 
 router.get("/:id",getCandidateById);
 

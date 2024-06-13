@@ -6,7 +6,7 @@ const {verifyTokenAndExtractUserId} = require("../middleware/verifyToken");
 
 const router = express.Router();
 
-router.get("/AllQuestion", getAllQuestion);
+router.get("/AllQuestion",verifyTokenAndExtractUserId, getAllQuestion);
 // router.post("/filterAllQUestion",getAllQuestionByCategoryandDifficultyLevel) // tested in postman successfully
 router.post("/create/question",verifyTokenAndExtractUserId,createQuestionAndAnswer); // tested in postman successfully
 router.delete("/delete/:id", verifyTokenAndExtractUserId, deleteQuestion); // tested in postman successfully

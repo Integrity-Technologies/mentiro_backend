@@ -49,6 +49,12 @@ const validateCompanyInput = (name, website, isActive, stripeCustomerId, planId)
 const getAllCompany = catchAsyncErrors(async (req, res) => {
   await createCompanyTable();
 
+  // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
+
   const companyResult = await client.query(`
     SELECT companies.*, "users".id as created_by, "users".first_name as created_by_user
     FROM companies
@@ -74,6 +80,13 @@ const getAllCompany = catchAsyncErrors(async (req, res) => {
 // Get all companies of a specific user
 const getAllCompaniesOfUser = catchAsyncErrors(async (req, res) => {
   await createCompanyTable();
+
+  // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
+
   const userId = req.user.id;
 
   const userCompanies = await client.query('SELECT * FROM companies WHERE created_by = $1', [userId]);
@@ -93,6 +106,13 @@ const getAllCompaniesOfUser = catchAsyncErrors(async (req, res) => {
 // Create company
 const createCompany = catchAsyncErrors(async (req, res) => {
   await createCompanyTable();
+
+  // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
+
   const userId = req.user.id;
   const { name, website, isActive, stripeCustomerId, planId } = req.body;
 
@@ -104,7 +124,7 @@ const createCompany = catchAsyncErrors(async (req, res) => {
 
   const existingCompany = await client.query('SELECT * FROM companies WHERE name = $1', [name]);
   if (existingCompany.rows.length > 0) {
-    return sendErrorResponse(res, 400, "Company with this name already exists");
+    return sendErrorResponse(res, 400, "company name already taken");
   }
 
   const companyData = {
@@ -153,6 +173,12 @@ const createCompany = catchAsyncErrors(async (req, res) => {
 const updateCompany = catchAsyncErrors(async (req, res) => {
   const companyId = req.params.id;
   const { name, website, isActive, stripeCustomerId, planId } = req.body;
+
+  // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
 
   const validationError = validateCompanyInput(name, website, isActive, stripeCustomerId, planId);
   if (validationError) {
@@ -209,6 +235,12 @@ const updateCompany = catchAsyncErrors(async (req, res) => {
 const deleteCompany = catchAsyncErrors(async (req, res) => {
   const companyId = req.params.id;
 
+  // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
+
   const existingCompany = await client.query('SELECT * FROM companies WHERE id = $1', [companyId]);
   if (existingCompany.rows.length === 0) {
     return sendErrorResponse(res, 404, "Company not found");
@@ -234,7 +266,7 @@ const deleteCompany = catchAsyncErrors(async (req, res) => {
   } catch (error) {
     await client.query('ROLLBACK');
     console.error("Error deleting company:", error.message);
-    res.status(500).json({ error: "Error deleting company" });
+    res.status(500).json({ error: "Error deleting company", error: error.message });
   }
 });
 

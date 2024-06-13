@@ -73,6 +73,12 @@ const getAllTests = catchAsyncErrors(async (req, res) => {
     return sendErrorResponse(res, 404, "No tests found");
   }
 
+  // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
+
   const companyIds = tests.map(test => test.company_id);
   const companyResult = await client.query('SELECT id, name FROM "companies" WHERE id = ANY($1)', [companyIds]);
   const companiesMap = new Map(companyResult.rows.map(company => [company.id, company.name]));
@@ -116,6 +122,12 @@ const createTest = catchAsyncErrors(async (req, res) => {
   if (validationError) {
     return sendErrorResponse(res, 400, validationError);
   }
+
+  // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
 
   const existingTest = await client.query('SELECT * FROM tests WHERE test_name = $1', [test_name]);
   if (existingTest.rows.length > 0) {
@@ -183,6 +195,12 @@ const getTestById = catchAsyncErrors(async (req, res) => {
     return sendErrorResponse(res, 404, "Test not found");
   }
 
+  // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
+
   analytics.track({
     userId: String(req.user.id),
     event: 'Viewed Test',
@@ -230,6 +248,12 @@ const editTest = catchAsyncErrors(async (req, res, next) => {
 
     //     // Extract updated test data from the request body
     const { test_name, test_description, category_names, company_name } = req.body;
+
+    // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
 
     validateTestInput(res, test_name, test_description, category_names, company_name);
 
@@ -280,7 +304,7 @@ const editTest = catchAsyncErrors(async (req, res, next) => {
 
     //     // Identify the updated test in Segment
     analytics.identify({
-      userId: String(req.user.id),
+      userId: String(req.user?.id),
       traits: {
         testId: String(testId),
         test_name: updatedTest.test_name,
@@ -292,7 +316,7 @@ const editTest = catchAsyncErrors(async (req, res, next) => {
 
     //     // Track the event of editing a test
     analytics.track({
-      userId: String(req.user.id),
+      userId: String(req.user?.id),
       event: 'Test Edited',
       properties: {
         testId: testId,
@@ -309,7 +333,7 @@ const editTest = catchAsyncErrors(async (req, res, next) => {
     });
   } catch (error) {
     console.error("Error updating test:", error.message);
-    res.status(500).json({ error: "Error updating test" });
+    res.status(500).json({ error: "Error updating test" , error: error.message });
   }
 });
 
@@ -320,6 +344,12 @@ const deleteTest = catchAsyncErrors(async (req, res) => {
   if (existingTest.rows.length === 0) {
     return sendErrorResponse(res, 404, "Test not found");
   }
+
+  // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
 
   // Delete the test data from the database
   await deleteTestById(testId);

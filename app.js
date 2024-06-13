@@ -24,11 +24,11 @@ dotenv.config({path:"./config/config.env"});
 
 
 // Handling Uncaught Exception
-// process.on("uncaughtException",(err)=>{
-//   console.log(`Error: ${err.message}`);
-//   console.log(`Shutting down the server due to Uncaught Exception`);
-//   process.exit(1);
-// })
+process.on("uncaughtException",(err)=>{
+  console.log(`Error: ${err.message}`);
+  console.log(`Shutting down the server due to Uncaught Exception`);
+  process.exit(1);
+})
 
 
 app.use(cors()); // Use cors middleware
@@ -53,10 +53,10 @@ const server = app.listen(process.env.PORT, () => {
 });
 
 // unhandled Promise Rejection
-// process.on("unhandledRejection",err=>{
-  //   console.log(`Error: ${err.message}`);
-  //   console.log(`Shutting down the server due to unhandled Promise Rejection`);
-  // server.close(()=>{
-    //   process.exit(1);
-    // })
-    // })
+process.on("unhandledRejection",err=>{
+    console.log(`Error: ${err.message}`);
+    console.log(`Shutting down the server due to unhandled Promise Rejection`);
+  server.close(()=>{
+      process.exit(1);
+    })
+    })

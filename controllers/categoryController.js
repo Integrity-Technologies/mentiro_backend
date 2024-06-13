@@ -28,6 +28,12 @@ const getAllCategory = catchAsyncErrors(async (req, res) => {
   await createCategoryTable();
   const category = await client.query('SELECT * FROM categories');
 
+  // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
+
   analytics.track({
     userId: String(req.user?.id || 'anonymous'),
     event: 'Admin Viewed All Categories',
@@ -43,6 +49,13 @@ const getAllCategory = catchAsyncErrors(async (req, res) => {
 // Create category
 const createCategory = catchAsyncErrors(async (req, res) => {
   await createCategoryTable();
+
+  // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
+
   const userId = req.user.id;
   const { category_name, isActive } = req.body;
 
@@ -122,6 +135,12 @@ const editCategoryById = catchAsyncErrors(async (req, res) => {
   const categoryId = req.params.id;
   const { category_name, isActive } = req.body;
 
+  // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
+
   // Validate category input
   const validationError = validateCategoryInput(category_name, isActive);
   if (validationError) {
@@ -168,6 +187,12 @@ const editCategoryById = catchAsyncErrors(async (req, res) => {
 const deleteCategoryById = catchAsyncErrors(async (req, res) => {
   const categoryId = req.params.id;
 
+  // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
+
   // Check if the category with the given ID exists
   const checkResult = await client.query('SELECT * FROM categories WHERE id = $1', [categoryId]);
   if (checkResult.rows.length === 0) {
@@ -192,7 +217,7 @@ const deleteCategoryById = catchAsyncErrors(async (req, res) => {
   } catch (error) {
     await client.query('ROLLBACK');
     console.error("Error deleting category:", error.message);
-    res.status(500).json({ error: "Error deleting category" });
+    res.status(500).json({ error: "Error deleting category" , error: error.message});
   }
 });
 

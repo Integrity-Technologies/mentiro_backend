@@ -70,6 +70,12 @@ const submitAnswer = catchAsyncErrors(async (req, res) => {
   // await validateAnswerInput(res, resultId, question_id, option);
   // Validate test input
 
+  // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
+
  // Ensure question_id is a number
  const questionId = parseInt(question_id, 10);
 
@@ -98,7 +104,7 @@ const submitAnswer = catchAsyncErrors(async (req, res) => {
   await updateResult(resultId, result.questions, parseInt(scorePercentage.toFixed(2)));
 
   analytics.track({
-    userId: String(req.user.id),
+    userId: String(req.user?.id),
     event: 'Answer Submitted',
     properties: {
       resultId,
@@ -122,6 +128,12 @@ const createResult = catchAsyncErrors(async (req, res) => {
   if (validationError) {
     return sendErrorResponse(res, 400, validationError);
   }
+
+  // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
 
   const existingResult = await client.query('SELECT * FROM results WHERE candidate_id = $1 AND test_id = $2 AND assessment_id = $3', [candidate_id, test_id, assessment_id]);
   if (existingResult.rows.length > 0) {
@@ -152,7 +164,7 @@ const createResult = catchAsyncErrors(async (req, res) => {
   const result = await saveResult(resultData);
 
   analytics.identify({
-    userId: String(req.user.id),
+    userId: String(req.user?.id),
     traits: {
       candidate_id: candidateId,
       test_id: testId,
@@ -162,7 +174,7 @@ const createResult = catchAsyncErrors(async (req, res) => {
   });
 
   analytics.track({
-    userId: String(req.user.id),
+    userId: String(req.user?.id),
     event: 'Result Created',
     properties: {
       resultId: result.id,
@@ -177,7 +189,7 @@ const createResult = catchAsyncErrors(async (req, res) => {
     success: true,
     message: "Result created successfully",
     result: result,
-    userId: req.user.id
+    userId: req.user?.id
   });
 });
 
@@ -191,6 +203,12 @@ const getAllResults = catchAsyncErrors(async (req, res) => {
     if (results.rows.length === 0) {
       return res.status(404).json({ error: "Results not found" });
     }
+
+    // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
 
     // Fetch candidate names for each result
     const candidateIds = results.rows.map(result => result.candidate_id);
@@ -256,7 +274,7 @@ const getAllResults = catchAsyncErrors(async (req, res) => {
 
     // Track the getAllResults event in Segment
     analytics.track({
-      userId: String(req.user.id),
+      userId: String(req.user?.id),
       event: 'Get All Results',
       properties: {
         count: results.rows.length,
@@ -269,6 +287,12 @@ const getAllResults = catchAsyncErrors(async (req, res) => {
 
 // get results for user assessments
 const getResultsByUser = catchAsyncErrors(async (req, res) => {
+
+  // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
 
     const userId = req.user.id; // Assume userId is extracted from the token
 
@@ -414,7 +438,7 @@ const getResultsByUser = catchAsyncErrors(async (req, res) => {
 
     // Track the getResultsByUser event in Segment
     analytics.track({
-      userId: String(req.user.id),
+      userId: String(req.user?.id),
       event: 'Results viewed By User',
       properties: {
         count: results.rows.length,

@@ -5,14 +5,24 @@ const { client } = require("../db/index.js");
 
 const verifyTokenAndExtractUserId = catchAsyncErrors(async(req, res, next) => {
     try {
-      // the below code works well with UI integration and successfully takes the token from UI. NOTE: this code in not applicable when testing along postman
-      // const authHeader = req.headers['authorization'];
-      // const token = authHeader && authHeader.split(' ')[1];
+      let token;
 
-      // console.log(token, " from verifyTokenAndExtractUserId function in middleware");
-    // the below code successfully takes the token from cookies when fetching the api through postman. NOTE: this code is not aplicable for UI integration
-    const { token } = req.cookies;
-    console.log(token);
+        // Check if token is present in cookies
+        if (req.cookies && req.cookies.token) {
+            token = req.cookies.token;
+            console.log(token, "from cookies in verifyTokenAndExtractUserId function in middleware");
+        }
+        // Check if token is present in headers
+        else if (req.headers['authorization']) {
+            const authHeader = req.headers['authorization'];
+            token = authHeader && authHeader.split(' ')[1];
+            console.log(token, "from headers in verifyTokenAndExtractUserId function in middleware");
+        }
+
+        // If no token is found, return an error
+        if (!token) {
+            return next(new ErrorHandler("No token provided", 401));
+        }
 
     // Verify the token using your JWT secret key
     const decoded = jwt.verify(token, process.env.JWT_SECRET);

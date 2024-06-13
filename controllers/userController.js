@@ -77,11 +77,11 @@ const signup = [
       // return res.status(400).json({ error: "User with this email already exists" });
       return sendErrorResponse(res, 400, 'User with this email already exists');
     }
-
-    // Check if a user with the same first name and last name already exists
-    const existingUserByName = await getUserByFullName(first_name, last_name);
-    if (existingUserByName) {
-      return sendErrorResponse(res, 400, 'user with this first name and last name already exists');
+   
+    // check if the phone no already exists in database
+    const existingPhoneNo = await client.query(`SELECT * FROM "users" WHERE phone = $1`,[phone]);
+    if(existingPhoneNo.rows.length > 0){
+      return sendErrorResponse(res, 400, 'User with this phone number already exists');
     }
 
     const hashedPassword = await bcrypt.hash(password, saltRounds);
@@ -102,7 +102,8 @@ const signup = [
       });
 
       if (!result.id) {
-        throw new Error("User ID is missing or invalid");
+        // throw new Error("User ID is missing or invalid");
+        return sendErrorResponse(res, 400, 'User ID is missing or invalid');
       }
 
       // Identify the user in Segment
@@ -131,7 +132,7 @@ const signup = [
       sendToken(result, 201, res);
     } catch (error) {
       console.error("Error occurred:", error);
-      res.status(500).json({ error: "An internal server error occurred" });
+      res.status(500).json({ error: error.message });
     }
   })
 ];
@@ -152,10 +153,10 @@ const addUser = [
       return sendErrorResponse(res, 400, 'User with this email already exists');
     }
 
-    // Check if a user with the same first name and last name already exists
-    const existingUserByName = await getUserByFullName(first_name, last_name);
-    if (existingUserByName) {
-      return sendErrorResponse(res, 400, 'user with this first name and last name already exists');
+    // check if the phone no already exists in database
+    const existingPhoneNo = await client.query(`SELECT * FROM "users" WHERE phone = $1`,[phone]);
+    if(existingPhoneNo.rows.length > 0){
+      return sendErrorResponse(res, 400, 'User with this phone number already exists');
     }
 
     const hashedPassword = await bcrypt.hash(password, saltRounds);
@@ -176,7 +177,8 @@ const addUser = [
       });
 
       if (!result.id) {
-        throw new Error("User ID is missing or invalid");
+        // throw new Error("User ID is missing or invalid");
+        return sendErrorResponse(res, 400, 'User ID is missing or invalid');
       }
 
       // Identify the user in Segment
@@ -205,7 +207,7 @@ const addUser = [
       sendToken(result, 201, res);
     } catch (error) {
       console.error("Error occurred:", error);
-      res.status(500).json({ error: "An internal server error occurred" });
+      res.status(500).json({ error: error.message });
     }
   })
 ];
@@ -260,13 +262,20 @@ const login = [
       sendToken(user, 200, res);
     } catch (error) {
       console.error("Error occurred during login:", error);
-      res.status(500).json({ error: "An internal server error occurred" });
+      res.status(500).json({ error: error.message });
     }
   })
 ];
 
 // User logout
 const logout = catchAsyncErrors(async (req, res, next) => {
+
+ // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
+
   res.cookie("token", null, {
     expires: new Date(Date.now()),
     httpOnly: true,
@@ -293,6 +302,12 @@ const getAllUsers = catchAsyncErrors(async (req, res, next) => {
     // Fetch all users from the database
     const users = await client.query('SELECT * FROM "users"');
 
+     // Check if req.user and req.user.id are defined
+     if (!req.user || !req.user.id) {
+      console.error("User data is missing or incomplete in the request");
+      return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+    }
+
     // Track the event of viewing all users if necessary
     analytics.track({
       userId: String(req.user.id), // Assumes req.user contains admin's user id
@@ -306,7 +321,7 @@ const getAllUsers = catchAsyncErrors(async (req, res, next) => {
     res.status(200).json(users.rows);
   } catch (error) {
     console.error("Error occurred while fetching users:", error);
-    res.status(500).json({ error: "An internal server error occurred" });
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -346,6 +361,14 @@ const forgotPassword = [
           message,
         });
 
+        analytics.track({
+          userId: String(user.id),
+          event: 'Forget password Request',
+          properties: {
+            passwordRequest: new Date().toISOString(),
+          }
+        });
+
         res.status(200).json({
           success: true,
           message: `Email sent to ${user.email} successfully`,
@@ -354,11 +377,11 @@ const forgotPassword = [
         // Reset token and expiry on failure
         await client.query('UPDATE "users" SET reset_password_token = NULL, reset_password_expiry = NULL WHERE id = $1', [user.id]);
         console.error("Error occurred while sending email:", error);
-        return res.status(500).json({ error: "An internal server error occurred" });
+        return res.status(500).json({ error: error.message });
       }
     } catch (error) {
       console.error("Error occurred during password recovery:", error);
-      res.status(500).json({ error: "An internal server error occurred" });
+      res.status(500).json({ error: error.message });
     }
   })
 ];
@@ -387,6 +410,14 @@ const resetPassword = [
       const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
       await client.query('UPDATE "users" SET password = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2', [hashedPassword, user.rows[0].id]);
 
+      analytics.track({
+        userId: String(req.user.id || 'anonymous'),
+        event: 'Password Reset successfully',
+        properties: {
+          passwordReset: new Date().toISOString(),
+        }
+      });
+
       res.status(200).json({ success: true, message: "Password reset successfully" });
     
   })
@@ -396,10 +427,24 @@ const resetPassword = [
 const getUserDetails = catchAsyncErrors(async (req, res) => {
   const userId = req.user.id;
 
+  // Check if req.user and req.user.id are defined
+  if (!req.user || !req.user.id) {
+    console.error("User data is missing or incomplete in the request");
+    return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+  }
+
   const user = await client.query('SELECT * FROM "users" WHERE id = $1', [userId]);
   if (user.rows.length === 0) {
     return sendErrorResponse(res, 400, 'User not found');
   }
+
+  analytics.track({
+    userId: String(req.user.id || 'anonymous'),
+    event: 'User details Fetched',
+    properties: {
+      detailsFetched: new Date().toISOString(),
+    }
+  });
 
   res.status(200).json(user.rows[0]);
 });
@@ -414,11 +459,11 @@ const editUser = [
 
     await validateUserExists(userId);
 
-    // Check if a user with the same first name and last name already exists
-    const existingUserByName = await getUserByFullName(first_name, last_name);
-    if (existingUserByName) {
-      return sendErrorResponse(res, 400, 'user with this first name and last name already exists');
-    }
+    // Check if req.user and req.user.id are defined
+    // if (!req.user || !req.user.id) {
+    //   console.error("User data is missing or incomplete in the request");
+    //   return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+    // }
 
     let hashedPassword = null;
     if (password) {
@@ -437,7 +482,7 @@ const editUser = [
     await client.query(updateQuery, values);
 
     analytics.identify({
-      userId: String(userId),
+      userId: String(req.user.id),
       traits: { email, firstName: first_name, lastName: last_name, phone }
     });
 
@@ -462,7 +507,7 @@ const deleteUser = catchAsyncErrors(async (req, res) => {
   await client.query('COMMIT');
 
   analytics.track({
-    userId: String(req.user.id),
+    userId: String(userId),
     event: 'User Deleted',
     properties: { userId, deletedAt: new Date().toISOString() }
   });

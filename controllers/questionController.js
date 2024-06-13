@@ -78,6 +78,12 @@ const createQuestionAndAnswer = [
 
   const { question_text, difficulty_level, category_names, options, question_type } = req.body;
 
+    // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
+
   // Check if the question already exists
   const existingQuestion = await client.query('SELECT id FROM questions WHERE question_text = $1', [question_text]);
   if (existingQuestion.rows.length > 0) {
@@ -136,6 +142,12 @@ const getAllQuestion = catchAsyncErrors(async (req, res) => {
   const result = await client.query('SELECT * FROM questions');
   const questions = result.rows;
 
+  // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
+
   if (questions.length === 0) {
     return sendErrorResponse(res, 400, "Questions not found");
   }
@@ -177,6 +189,12 @@ const deleteQuestion = catchAsyncErrors(async (req, res) => {
     return sendErrorResponse(res, 404, "Question not found");
   }
 
+  // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
+
   await client.query('BEGIN');
   await client.query('DELETE FROM answers WHERE question_id = $1', [id]);
   const result = await client.query('DELETE FROM questions WHERE id = $1 RETURNING *', [id]);
@@ -209,6 +227,12 @@ const updateQuestion = [
   if (questionResult.rows.length === 0) {
     return sendErrorResponse(res, 404, "Question not found");
   }
+
+  // Check if req.user and req.user.id are defined
+ if (!req.user || !req.user.id) {
+  console.error("User data is missing or incomplete in the request");
+  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+}
 
   const question = questionResult.rows[0];
   const updatedCategoryIds = await findCategoryIdsByName(category_names);

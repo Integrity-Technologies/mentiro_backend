@@ -9,16 +9,16 @@ const router = express.Router();
 
 router.post('/signup', signup); // tested in postman successfully
 router.post('/login', login); // tested in postman successfully
-router.get("/Allusers",verifyTokenAndExtractUserId, getAllUsers); // tested in postman successfully
+router.get("/Allusers", getAllUsers); // tested in postman successfully
 router.post("/password/forgot", forgotPassword); // tested in postman successfully
 router.put("/password/reset/:token", resetPassword); // tested in postman successfully
-router.get("/logout", logout); // tested in postman successfully
+router.get("/logout", verifyTokenAndExtractUserId,logout); // tested in postman successfully
 
-router.get("/me",verifyTokenAndExtractUserId, getUserDetails); // tested in postman successfully
+router.get("/me", verifyTokenAndExtractUserId,getUserDetails); // tested in postman successfully
 
 router.put("/update/:id",verifyTokenAndExtractUserId,editUser); // tested in postman successfully
 router.delete("/delete/:id",verifyTokenAndExtractUserId,deleteUser); // tested in postman successfully
-router.post("/add",addUser);
+router.post("/add",verifyTokenAndExtractUserId,addUser);
 
 module.exports = router;
 

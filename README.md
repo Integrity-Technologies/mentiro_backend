@@ -1,3 +1,3 @@
-For postman:
+For postman and UI testing purpose:
 
-changes in these auth.js and verifyToken.js (comment out Token)
+If you are supposed to test the API's on postman or wants to test the API's on UI there's a peice of code for token for each purpose... For more kindly check the VerifyToken.js in middleware folder that will guide you more...

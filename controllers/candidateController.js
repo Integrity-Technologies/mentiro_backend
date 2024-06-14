@@ -56,7 +56,7 @@ const createCandidate = [
     // Check if a candidate with the same email already exists
     const existingCandidate = await client.query('SELECT * FROM "candidates" WHERE email = $1', [candidateData.email]);
     if (existingCandidate.rows.length > 0) {
-      return sendErrorResponse(res, 400, 'Candidate with this email already exists');
+      return sendErrorResponse(res, 200, 'Candidate with this email already exists');
     }
 
     try {
@@ -238,7 +238,7 @@ const getAllUserCandidate = catchAsyncErrors(async (req, res) => {
     const assessmentsResult = await client.query(assessmentsQuery, [userId]);
 
     if (assessmentsResult.rows.length === 0) {
-      return res.status(404).json({ error: "No assessments found for this user" });
+      return res.status(200).json({ error: "No assessments found for this user" });
     }
 
     const assessments = assessmentsResult.rows;

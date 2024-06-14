@@ -1,4 +1,4 @@
-// company controller 
+// companyController.js
 const { createCompanyTable, saveCompany } = require("../models/company");
 const { client } = require("../db/index.js");
 const analytics = require('../segment/segmentConfig');

@@ -1,4 +1,4 @@
-// candidate controller 
+// candidateController.js 
 const { createCandidateTable, saveCandidate } = require("../models/candidate");
 const { client } = require("../db/index.js");
 const analytics = require('../segment/segmentConfig');

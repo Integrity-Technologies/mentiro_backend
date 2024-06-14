@@ -1,4 +1,4 @@
-// question controller 
+// questionController.js
 const { saveQuestion, createQuestionTable } = require('../models/question');
 const { saveAnswer, createAnswersTable } = require('../models/answer');
 const analytics = require('../segment/segmentConfig');

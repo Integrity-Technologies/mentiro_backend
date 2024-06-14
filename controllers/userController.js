@@ -1,4 +1,4 @@
-// user controller
+// userController.js
 const { createUserTable, saveUser } = require("../models/user");
 const analytics = require('../segment/segmentConfig');
 const bcrypt = require('bcrypt');

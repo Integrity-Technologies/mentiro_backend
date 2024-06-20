@@ -115,13 +115,13 @@ const saveAssessment = async (assessmentData) => {
     }
 
     // Check if an assessment with the same name already exists
-    const existingAssessment = await client.query(
-      'SELECT * FROM "assessments" WHERE assessment_name = $1',
-      [assessment_name]
-    );
-    if (existingAssessment.rows.length > 0) {
-      return { error: "Assessment with this name already exists" };
-    }
+    // const existingAssessment = await client.query(
+    //   'SELECT * FROM "assessments" WHERE assessment_name = $1',
+    //   [assessment_name]
+    // );
+    // if (existingAssessment.rows.length > 0) {
+    //   return { error: "Assessment with this name already exists" };
+    // }
 
 
     // assessmentData.tests = JSON.stringify(assessmentData.tests);

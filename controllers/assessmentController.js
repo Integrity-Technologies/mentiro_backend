@@ -38,7 +38,7 @@ const findCompanyIdByName = async (companyName) => {
 };
 
 
- const QUESTION_TIME_PER_MINUTE = 1; // Assuming each question takes 1 minute
+const QUESTION_TIME_PER_MINUTE = 1; // Assuming each question takes 1 minute
 
 //  correct findTestIdsByName below except exceed questions validation
 //  const findTestIdsByName = async (tests) => {
@@ -243,10 +243,10 @@ const getAssessmentByLink = catchAsyncErrors(async (req, res) => {
     }
 
     // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+    if (!req.user || !req.user.id) {
+      console.error("User ID is missing in the request");
+      return res.status(400).json({ error: "User ID is missing in the request" });
+    }
 
     // Track the get assessment by link event in Segment
     analytics.track({
@@ -305,7 +305,7 @@ const findJobLocationIdByName = async (name) => {
     throw error;
   }
 };
- 
+
 // Create Assessment
 const createAssessment = async (req, res, next) => {
   try {
@@ -314,13 +314,23 @@ const createAssessment = async (req, res, next) => {
     const { assessment_name, company_name, tests, job_role, work_arrangement, job_location } = req.body;
 
     // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+    if (!req.user || !req.user.id) {
+      console.error("User ID is missing in the request");
+      return res.status(400).json({ error: "User ID is missing in the request" });
+    }
 
-    if (!assessment_name || !company_name || !Array.isArray(tests) || tests.length === 0 || !job_role || !job_location || !work_arrangement) {
-      return res.status(400).json({ error: 'Invalid request data. Missing or incorrect format for tests array.' });
+    // Check if a candidate with the same email already exists
+    const existingAssessment = await client.query('SELECT * FROM "assessments" WHERE assessment_name = $1', [assessment_name]);
+    if (existingAssessment.rows.length > 0) {
+      return sendErrorResponse(res, 409, 'Assessment with this name already exists');
+    }
+
+    if (!assessment_name || !company_name || !tests || tests.length === 0 || !job_role || !job_location || !work_arrangement) {
+      return res.status(400).json({ error: 'Invalid request data. Missing required fields' });
+    }
+
+    if (!Array.isArray(tests)) {
+      return res.status(400).json({ error: "Incorrect format of tests array." })
     }
 
     const companyId = await findCompanyIdByName(company_name);
@@ -346,7 +356,7 @@ const createAssessment = async (req, res, next) => {
       uniquelink: assessmentLinks.link,
       created_by: req.user.id,
       // assessment_time: processedTests.reduce((acc, test) => acc + test.test_difficulty.easy + test.test_difficulty.medium + test.test_difficulty.hard, 0) * QUESTION_TIME_PER_MINUTE,
-      assessment_time:assessmentTime,
+      assessment_time: assessmentTime,
       job_role_id: jobRoleId,
       work_arrangement_id: workArrangementId,
       job_location_id: jobLocationId,
@@ -401,10 +411,10 @@ const getAllAssessments = catchAsyncErrors(async (req, res, next) => {
     const assessments = await client.query('SELECT * FROM assessments');
 
     // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+    if (!req.user || !req.user.id) {
+      console.error("User ID is missing in the request");
+      return res.status(400).json({ error: "User ID is missing in the request" });
+    }
 
     // Track the get all assessments event in Segment
     analytics.track({
@@ -430,10 +440,14 @@ const getAllUserAssessments = catchAsyncErrors(async (req, res, next) => {
     const userAssessments = await client.query('SELECT * FROM assessments WHERE created_by = $1', [userId]);
 
     // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+    if (!req.user || !req.user.id) {
+      console.error("User ID is missing in the request");
+      return res.status(400).json({ error: "User ID is missing in the request" });
+    }
+
+    if (userAssessments.rows.length === 0) {
+      return res.status(200).json({ error: "No assessments found for this user" });
+    }
 
     // Track the get all user assessments event in Segment
     analytics.track({
@@ -460,10 +474,10 @@ const updateAssessment = catchAsyncErrors(async (req, res, next) => {
     const { assessment_name, company_name, tests } = req.body;
 
     // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+    if (!req.user || !req.user.id) {
+      console.error("User ID is missing in the request");
+      return res.status(400).json({ error: "User ID is missing in the request" });
+    }
 
     // Validate request data
     if (!assessment_name || !company_name || !tests) {
@@ -526,10 +540,10 @@ const deleteAssessment = catchAsyncErrors(async (req, res, next) => {
     const { id } = req.params;
 
     // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+    if (!req.user || !req.user.id) {
+      console.error("User ID is missing in the request");
+      return res.status(400).json({ error: "User ID is missing in the request" });
+    }
 
     // Delete assessment from the database
     const query = 'DELETE FROM assessments WHERE id = $1';
@@ -553,21 +567,21 @@ const deleteAssessment = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
-const inviteCandidate = async(req,res) => {
+const inviteCandidate = async (req, res) => {
   try {
     const { assessmentId, candidateEmail, firstName, lastName } = req.body; // Assuming you have userEmail in your request body
-    
+
     // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+    if (!req.user || !req.user.id) {
+      console.error("User ID is missing in the request");
+      return res.status(400).json({ error: "User ID is missing in the request" });
+    }
 
     const result = await client.query('SELECT * FROM "assessments" WHERE id = $1', [assessmentId]);
     if (result.rows.length === 0) {
-      return res.status(500).json({ error: "Assessment not found" });
+      return res.status(404).json({ error: "Assessment not found" });
     }
-    
+
     const assessment = result.rows[0];
     const shareableLink = assessment.shareablelink; // Corrected property name
     const assessmentTotalTime = assessment
@@ -589,8 +603,8 @@ const inviteCandidate = async(req,res) => {
       message,
     });
 
-     // Track the candidate invitation event in Segment
-     analytics.track({
+    // Track the candidate invitation event in Segment
+    analytics.track({
       userId: String(req.user?.id),
       event: 'Candidate Invited',
       properties: {
@@ -606,7 +620,7 @@ const inviteCandidate = async(req,res) => {
     res.status(200).json({ success: true, message: "Email sent successfully" });
   } catch (error) {
     console.log("Error sending Email:", error.message);
-    res.status(500).json({error: "Error sending Email", error: error.message})
+    res.status(500).json({ error: "Error sending Email", error: error.message })
   }
 }
 

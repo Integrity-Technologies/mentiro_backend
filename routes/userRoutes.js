@@ -9,7 +9,7 @@ const router = express.Router();
 
 router.post('/signup', signup); // tested in postman successfully
 router.post('/login', login); // tested in postman successfully
-router.get("/Allusers", getAllUsers); // tested in postman successfully
+router.get("/Allusers",verifyTokenAndExtractUserId, getAllUsers); // tested in postman successfully
 router.post("/password/forgot", forgotPassword); // tested in postman successfully
 router.put("/password/reset/:token", resetPassword); // tested in postman successfully
 router.get("/logout", verifyTokenAndExtractUserId,logout); // tested in postman successfully

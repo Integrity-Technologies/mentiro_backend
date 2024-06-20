@@ -27,17 +27,6 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
-// Get candidate by full name
-const getCandidateByFullName = async (firstName, lastName) => {
-  try {
-    const result = await client.query('SELECT * FROM candidates WHERE first_name = $1 AND last_name = $2', [firstName, lastName]);
-    return result.rows.length > 0 ? result.rows[0] : null;
-  } catch (error) {
-    console.error("Error getting candidate by full name:", error.message);
-    throw new Error("Error getting candidate by full name");
-  }
-};
-
 // Create candidate
 const createCandidate = [
   ...candidateValidationRules,
@@ -48,15 +37,15 @@ const createCandidate = [
     await createCandidateTable();
 
     // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+    if (!req.user || !req.user.id) {
+      console.error("User ID is missing in the request");
+      return res.status(400).json({ error: "User ID is missing in the request" });
+    }
 
     // Check if a candidate with the same email already exists
     const existingCandidate = await client.query('SELECT * FROM "candidates" WHERE email = $1', [candidateData.email]);
     if (existingCandidate.rows.length > 0) {
-      return sendErrorResponse(res, 200, 'Candidate with this email already exists');
+      return sendErrorResponse(res, 409, 'Candidate with this email already exists');
     }
 
     try {
@@ -102,10 +91,10 @@ const editCandidateById = [
     const updatedData = req.body;
 
     // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+    if (!req.user || !req.user.id) {
+      console.error("User ID is missing in the request");
+      return res.status(400).json({ error: "User ID is missing in the request" });
+    }
 
     // Check if the candidate exists
     const existingCandidate = await client.query('SELECT * FROM candidates WHERE id = $1', [candidateId]);
@@ -159,7 +148,23 @@ const editCandidateById = [
 // Get all candidates
 const getAllCandidate = catchAsyncErrors(async (req, res) => {
   try {
+
+    // Check if req.user and req.user.id are defined
+    if (!req.user || !req.user.id) {
+      console.error("User ID is missing in the request");
+      return res.status(400).json({ error: "User ID is missing in the request" });
+    }
+
     const result = await client.query('SELECT * FROM candidates');
+
+    analytics.track({
+      userId: String(req.user.id),
+      event: 'Admin Viewed All Users',
+      properties: {
+        fetchedAt: new Date().toISOString(),
+      }
+    });
+
     res.status(200).json(result.rows);
   } catch (error) {
     console.error("Error getting candidates:", error.message);
@@ -222,10 +227,10 @@ const getAllUserCandidate = catchAsyncErrors(async (req, res) => {
   try {
 
     // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+    if (!req.user || !req.user.id) {
+      console.error("User ID is missing in the request");
+      return res.status(400).json({ error: "User ID is missing in the request" });
+    }
 
     const userId = req.user.id; // Assume userId is extracted from the token
 
@@ -253,7 +258,7 @@ const getAllUserCandidate = catchAsyncErrors(async (req, res) => {
     const results = await client.query(resultsQuery, [assessmentIds]);
 
     if (results.rows.length === 0) {
-      return res.status(404).json({ error: "No candidates found for these assessments" });
+      return res.status(200).json({ error: "No candidates found for these assessments" });
     }
 
     const candidateIds = results.rows.map(result => result.candidate_id);
@@ -289,6 +294,14 @@ const getAllUserCandidate = catchAsyncErrors(async (req, res) => {
       };
     });
 
+    analytics.track({
+      userId: String(userId),
+      event: 'Candidate Assessments Fetched',
+      properties: {
+        fetchedAt: new Date().toISOString(),
+      }
+    });
+
     res.status(200).json(candidatesWithCompanies);
   } catch (error) {
     console.error("Error getting candidates:", error.message);
@@ -300,6 +313,13 @@ const getAllUserCandidate = catchAsyncErrors(async (req, res) => {
 const deleteCandidateById = catchAsyncErrors(async (req, res) => {
   const candidateId = req.params.id;
   try {
+
+    // Check if req.user and req.user.id are defined
+    if (!req.user || !req.user.id) {
+      console.error("User ID is missing in the request");
+      return res.status(400).json({ error: "User ID is missing in the request" });
+    }
+
     const existingCandidate = await client.query('SELECT * FROM candidates WHERE id = $1', [candidateId]);
     if (existingCandidate.rows.length === 0) {
       return res.status(404).json({ message: "Candidate not found" });
@@ -308,6 +328,16 @@ const deleteCandidateById = catchAsyncErrors(async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "Candidate not found" });
     }
+
+    analytics.track({
+      userId: String(candidateId),
+      event: 'Candidate Deleted Successfully',
+      properties: {
+        deletedAt: new Date().toISOString(),
+        firstName: existingCandidate.first_name
+      }
+    });
+
     res.status(200).json({ message: "Candidate deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Error deleting candidate", error: error.message });

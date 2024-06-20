@@ -29,10 +29,10 @@ const getAllCategory = catchAsyncErrors(async (req, res) => {
   const category = await client.query('SELECT * FROM categories');
 
   // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+  if (!req.user || !req.user.id) {
+    console.error("User ID is missing in the request");
+    return res.status(400).json({ error: "User ID is missing in the request" });
+  }
 
   analytics.track({
     userId: String(req.user?.id || 'anonymous'),
@@ -51,10 +51,10 @@ const createCategory = catchAsyncErrors(async (req, res) => {
   await createCategoryTable();
 
   // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+  if (!req.user || !req.user.id) {
+    console.error("User ID is missing in the request");
+    return res.status(400).json({ error: "User ID is missing in the request" });
+  }
 
   const userId = req.user.id;
   const { category_name, isActive } = req.body;
@@ -68,7 +68,7 @@ const createCategory = catchAsyncErrors(async (req, res) => {
   // Check if a category with the same name already exists
   const existingCategory = await client.query('SELECT * FROM categories WHERE category_name = $1', [category_name]);
   if (existingCategory.rows.length > 0) {
-    return sendErrorResponse(res, 400, "Category with this name already exists");
+    return sendErrorResponse(res, 409, "Category with this name already exists");
   }
 
   const categoryData = {
@@ -110,10 +110,17 @@ const createCategory = catchAsyncErrors(async (req, res) => {
 // Get category by name
 const getCategoryByName = catchAsyncErrors(async (req, res) => {
   const { category_name } = req.params;
+
+  // Check if req.user and req.user.id are defined
+  if (!req.user || !req.user.id) {
+    console.error("User ID is missing in the request");
+    return res.status(400).json({ error: "User ID is missing in the request" });
+  }
+
   const query = 'SELECT * FROM categories WHERE category_name = $1';
   const values = [category_name];
   const result = await client.query(query, values);
-  
+
   if (result.rows.length === 0) {
     return sendErrorResponse(res, 404, "Category not found");
   }
@@ -136,10 +143,10 @@ const editCategoryById = catchAsyncErrors(async (req, res) => {
   const { category_name, isActive } = req.body;
 
   // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+  if (!req.user || !req.user.id) {
+    console.error("User ID is missing in the request");
+    return res.status(400).json({ error: "User ID is missing in the request" });
+  }
 
   // Validate category input
   const validationError = validateCategoryInput(category_name, isActive);
@@ -156,7 +163,7 @@ const editCategoryById = catchAsyncErrors(async (req, res) => {
   // Check if the new category name already exists in the database
   const existingCategory = await client.query('SELECT * FROM categories WHERE category_name = $1 AND id != $2', [category_name, categoryId]);
   if (existingCategory.rows.length > 0) {
-    return sendErrorResponse(res, 400, "Category name already exists");
+    return sendErrorResponse(res, 409, "Category name already exists");
   }
 
   const updateCategory = await client.query(
@@ -188,10 +195,10 @@ const deleteCategoryById = catchAsyncErrors(async (req, res) => {
   const categoryId = req.params.id;
 
   // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+  if (!req.user || !req.user.id) {
+    console.error("User ID is missing in the request");
+    return res.status(400).json({ error: "User ID is missing in the request" });
+  }
 
   // Check if the category with the given ID exists
   const checkResult = await client.query('SELECT * FROM categories WHERE id = $1', [categoryId]);
@@ -217,7 +224,7 @@ const deleteCategoryById = catchAsyncErrors(async (req, res) => {
   } catch (error) {
     await client.query('ROLLBACK');
     console.error("Error deleting category:", error.message);
-    res.status(500).json({ error: "Error deleting category" , error: error.message});
+    res.status(500).json({ error: "Error deleting category", error: error.message });
   }
 });
 

@@ -74,10 +74,10 @@ const getAllTests = catchAsyncErrors(async (req, res) => {
   }
 
   // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+  if (!req.user || !req.user.id) {
+    console.error("User ID is missing in the request");
+    return res.status(400).json({ error: "User ID is missing in the request" });
+  }
 
   const companyIds = tests.map(test => test.company_id);
   const companyResult = await client.query('SELECT id, name FROM "companies" WHERE id = ANY($1)', [companyIds]);
@@ -116,32 +116,32 @@ const createTest = catchAsyncErrors(async (req, res) => {
   await createTestsTable();
   const userId = req.user.id;
   const { test_name, test_description, category_names, company_name } = req.body;
-  
+
   // Validate test input
-  const validationError =  await validateTestInput(test_name, test_description, category_names, company_name);
+  const validationError = await validateTestInput(test_name, test_description, category_names, company_name);
   if (validationError) {
     return sendErrorResponse(res, 400, validationError);
   }
 
   // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+  if (!req.user || !req.user.id) {
+    console.error("User ID is missing in the request");
+    return res.status(400).json({ error: "User ID is missing in the request" });
+  }
 
   const existingTest = await client.query('SELECT * FROM tests WHERE test_name = $1', [test_name]);
   if (existingTest.rows.length > 0) {
-    return sendErrorResponse(res, 400, "Test with this name already exists");
+    return sendErrorResponse(res, 409, "Test with this name already exists");
   }
 
   const companyId = await findCompanyIdByName(company_name);
   if (!companyId) {
-    return sendErrorResponse(res, 400, `Company '${company_name}' not found`);
+    return sendErrorResponse(res, 404, `Company '${company_name}' not found`);
   }
 
   const categoryIds = await findCategoryIdsByName(category_names);
   if (!categoryIds) {
-    return sendErrorResponse(res, 400, `One or more categories not found`);
+    return sendErrorResponse(res, 404, `One or more categories not found`);
   }
 
   const testData = {
@@ -196,10 +196,10 @@ const getTestById = catchAsyncErrors(async (req, res) => {
   }
 
   // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+  if (!req.user || !req.user.id) {
+    console.error("User ID is missing in the request");
+    return res.status(400).json({ error: "User ID is missing in the request" });
+  }
 
   analytics.track({
     userId: String(req.user.id),
@@ -250,10 +250,10 @@ const editTest = catchAsyncErrors(async (req, res, next) => {
     const { test_name, test_description, category_names, company_name } = req.body;
 
     // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+    if (!req.user || !req.user.id) {
+      console.error("User ID is missing in the request");
+      return res.status(400).json({ error: "User ID is missing in the request" });
+    }
 
     validateTestInput(res, test_name, test_description, category_names, company_name);
 
@@ -262,7 +262,7 @@ const editTest = catchAsyncErrors(async (req, res, next) => {
 
     if (!companyId) {
       // return res.status(400).json({ error: `Company '${company_name}' not found` });
-      return sendErrorResponse(res, 400, `Company '${company_name}' not found`);
+      return sendErrorResponse(res, 404, `Company '${company_name}' not found`);
     }
 
     //     // Find category IDs by names
@@ -270,7 +270,7 @@ const editTest = catchAsyncErrors(async (req, res, next) => {
 
     if (!categoryIds) {
       // return res.status(400).json({ error: `One or more categories not found` });
-      return sendErrorResponse(res, 400, `One or more categories not found`);
+      return sendErrorResponse(res, 404, `One or more categories not found`);
     }
 
     //     // Fetch the existing test data from the database
@@ -333,7 +333,7 @@ const editTest = catchAsyncErrors(async (req, res, next) => {
     });
   } catch (error) {
     console.error("Error updating test:", error.message);
-    res.status(500).json({ error: "Error updating test" , error: error.message });
+    res.status(500).json({ error: "Error updating test", error: error.message });
   }
 });
 
@@ -346,10 +346,10 @@ const deleteTest = catchAsyncErrors(async (req, res) => {
   }
 
   // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+  if (!req.user || !req.user.id) {
+    console.error("User ID is missing in the request");
+    return res.status(400).json({ error: "User ID is missing in the request" });
+  }
 
   // Delete the test data from the database
   await deleteTestById(testId);

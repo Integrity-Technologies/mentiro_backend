@@ -51,17 +51,6 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
-// Get user by full name
-const getUserByFullName = async (firstName, lastName) => {
-  try {
-    const result = await client.query('SELECT * FROM users WHERE first_name = $1 AND last_name = $2', [firstName, lastName]);
-    return result.rows.length > 0 ? result.rows[0] : null;
-  } catch (error) {
-    console.error("Error getting user by full name:", error.message);
-    throw new Error("Error getting user by full name");
-  }
-};
-
 // Signup new user
 const signup = [
   ...userValidationRules,
@@ -75,13 +64,13 @@ const signup = [
     const existingUser = await client.query('SELECT * FROM "users" WHERE email = $1', [email]);
     if (existingUser.rows.length > 0) {
       // return res.status(400).json({ error: "User with this email already exists" });
-      return sendErrorResponse(res, 400, 'User with this email already exists');
+      return sendErrorResponse(res, 409, 'User with this email already exists');
     }
-   
+
     // check if the phone no already exists in database
-    const existingPhoneNo = await client.query(`SELECT * FROM "users" WHERE phone = $1`,[phone]);
-    if(existingPhoneNo.rows.length > 0){
-      return sendErrorResponse(res, 400, 'User with this phone number already exists');
+    const existingPhoneNo = await client.query(`SELECT * FROM "users" WHERE phone = $1`, [phone]);
+    if (existingPhoneNo.rows.length > 0) {
+      return sendErrorResponse(res, 409, 'User with this phone number already exists');
     }
 
     const hashedPassword = await bcrypt.hash(password, saltRounds);
@@ -146,17 +135,23 @@ const addUser = [
 
     await createUserTable();
 
+    // Check if req.user and req.user.id are defined
+    if (!req.user || !req.user.id) {
+      console.error("User ID is missing in the request");
+      return res.status(400).json({ error: "User ID is missing in the request" });
+    }
+
     // Check if a user with the same email already exists
     const existingUser = await client.query('SELECT * FROM "users" WHERE email = $1', [email]);
     if (existingUser.rows.length > 0) {
       // return res.status(400).json({ error: "User with this email already exists" });
-      return sendErrorResponse(res, 400, 'User with this email already exists');
+      return sendErrorResponse(res, 409, 'User with this email already exists');
     }
 
     // check if the phone no already exists in database
-    const existingPhoneNo = await client.query(`SELECT * FROM "users" WHERE phone = $1`,[phone]);
-    if(existingPhoneNo.rows.length > 0){
-      return sendErrorResponse(res, 400, 'User with this phone number already exists');
+    const existingPhoneNo = await client.query(`SELECT * FROM "users" WHERE phone = $1`, [phone]);
+    if (existingPhoneNo.rows.length > 0) {
+      return sendErrorResponse(res, 409, 'User with this phone number already exists');
     }
 
     const hashedPassword = await bcrypt.hash(password, saltRounds);
@@ -225,7 +220,7 @@ const login = [
       const existingUser = await client.query('SELECT * FROM "users" WHERE email = $1', [email]);
       if (existingUser.rows.length === 0) {
         // return res.status(400).json({ error: "User with this email doesn't exist" });
-        return sendErrorResponse(res, 400, 'User with this email does not exists');
+        return sendErrorResponse(res, 404, 'User with this email does not exists');
       }
 
       const user = existingUser.rows[0];
@@ -234,7 +229,7 @@ const login = [
       const isPasswordValid = await bcrypt.compare(password, user.password);
       if (!isPasswordValid) {
         // return res.status(400).json({ error: "Invalid password" });
-        return sendErrorResponse(res, 400, 'Invalid password');
+        return sendErrorResponse(res, 401, 'Invalid password');
       }
 
       // Identify the user in Segment
@@ -270,11 +265,11 @@ const login = [
 // User logout
 const logout = catchAsyncErrors(async (req, res, next) => {
 
- // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+  // Check if req.user and req.user.id are defined
+  if (!req.user || !req.user.id) {
+    console.error("User ID is missing in the request");
+    return res.status(400).json({ error: "User ID is missing in the request" });
+  }
 
   res.cookie("token", null, {
     expires: new Date(Date.now()),
@@ -283,7 +278,7 @@ const logout = catchAsyncErrors(async (req, res, next) => {
 
   // Track the logout event in Segment
   analytics.track({
-    userId: String(req.user.id),
+    userId: String(req.user?.id),
     event: 'User Logged Out',
     properties: {
       logoutAt: new Date().toISOString(),
@@ -302,12 +297,11 @@ const getAllUsers = catchAsyncErrors(async (req, res, next) => {
     // Fetch all users from the database
     const users = await client.query('SELECT * FROM "users"');
 
-     // Check if req.user and req.user.id are defined
-     if (!req.user || !req.user.id) {
-      console.error("User data is missing or incomplete in the request");
-      return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+    // Check if req.user and req.user.id are defined
+    if (!req.user || !req.user.id) {
+      console.error("User ID is missing in the request");
+      return res.status(400).json({ error: "User ID is missing in the request" });
     }
-
     // Track the event of viewing all users if necessary
     analytics.track({
       userId: String(req.user.id), // Assumes req.user contains admin's user id
@@ -337,7 +331,7 @@ const forgotPassword = [
       const existingUser = await client.query('SELECT * FROM "users" WHERE email = $1', [email]);
       if (existingUser.rows.length === 0) {
         // return res.status(400).json({ error: "User with this email doesn't exist" });
-        return sendErrorResponse(res, 400, 'User with this email does not exist');
+        return sendErrorResponse(res, 404, 'User with this email does not exist');
       }
 
       const user = existingUser.rows[0];
@@ -351,7 +345,7 @@ const forgotPassword = [
       await client.query('UPDATE "users" SET reset_token = $1, reset_token_expiry = $2 WHERE id = $3', [resetToken, resetTokenExpiry, user.id]);
 
       // Send the reset password email
-      const resetUrl = `${req.protocol}://${req.get("host")}/api/v1/password/reset/${resetPasswordToken}`;
+      const resetUrl = `${req.protocol}://${req.get("host")}/password/reset/${resetPasswordToken}`;
       const message = `Your password reset token is as follows: \n\n${resetUrl}\n\nIf you have not requested this email, then ignore it.`;
 
       try {
@@ -391,35 +385,35 @@ const resetPassword = [
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
   handleValidationErrors,
   catchAsyncErrors(async (req, res, next) => {
-    const { newPassword, confirmPassword, token} = req.body;
+    const { newPassword, confirmPassword, token } = req.body;
 
-      const now = new Date(Date.now());
+    const now = new Date(Date.now());
 
-      // Find user by reset token and ensure token has not expired
-      const user = await client.query('SELECT * FROM "users" WHERE reset_token = $1 AND reset_token_expiry > $2', [token, now]);
-      if (user.rows.length === 0) {
-        return sendErrorResponse(res, 400, 'Invalid or expired reset token');
-      }
+    // Find user by reset token and ensure token has not expired
+    const user = await client.query('SELECT * FROM "users" WHERE reset_token = $1 AND reset_token_expiry > $2', [token, now]);
+    if (user.rows.length === 0) {
+      return sendErrorResponse(res, 400, 'Invalid or expired reset token');
+    }
 
-       // Validate new password and confirm password match
+    // Validate new password and confirm password match
     if (newPassword !== confirmPassword) {
       return sendErrorResponse(res, 400, 'New password do not match');
     }
 
-      // Update user's password
-      const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
-      await client.query('UPDATE "users" SET password = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2', [hashedPassword, user.rows[0].id]);
+    // Update user's password
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+    await client.query('UPDATE "users" SET password = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2', [hashedPassword, user.rows[0].id]);
 
-      analytics.track({
-        userId: String(req.user.id || 'anonymous'),
-        event: 'Password Reset successfully',
-        properties: {
-          passwordReset: new Date().toISOString(),
-        }
-      });
+    analytics.track({
+      userId: String(req.user.id || 'anonymous'),
+      event: 'Password Reset successfully',
+      properties: {
+        passwordReset: new Date().toISOString(),
+      }
+    });
 
-      res.status(200).json({ success: true, message: "Password reset successfully" });
-    
+    res.status(200).json({ success: true, message: "Password reset successfully" });
+
   })
 ];
 
@@ -429,13 +423,13 @@ const getUserDetails = catchAsyncErrors(async (req, res) => {
 
   // Check if req.user and req.user.id are defined
   if (!req.user || !req.user.id) {
-    console.error("User data is missing or incomplete in the request");
-    return res.status(400).json({ error: "User data is missing or incomplete in the request" });
+    console.error("User ID is missing in the request");
+    return res.status(400).json({ error: "User ID is missing in the request" });
   }
 
   const user = await client.query('SELECT * FROM "users" WHERE id = $1', [userId]);
   if (user.rows.length === 0) {
-    return sendErrorResponse(res, 400, 'User not found');
+    return sendErrorResponse(res, 404, 'User not found');
   }
 
   analytics.track({
@@ -460,10 +454,10 @@ const editUser = [
     await validateUserExists(userId);
 
     // Check if req.user and req.user.id are defined
-    // if (!req.user || !req.user.id) {
-    //   console.error("User data is missing or incomplete in the request");
-    //   return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-    // }
+    if (!req.user || !req.user.id) {
+      console.error("User ID is missing in the request");
+      return res.status(400).json({ error: "User ID is missing in the request" });
+    }
 
     let hashedPassword = null;
     if (password) {
@@ -499,6 +493,12 @@ const editUser = [
 // Delete user (Admin)
 const deleteUser = catchAsyncErrors(async (req, res) => {
   const userId = req.params.id;
+
+  // Check if req.user and req.user.id are defined
+  if (!req.user || !req.user.id) {
+    console.error("User ID is missing in the request");
+    return res.status(400).json({ error: "User ID is missing in the request" });
+  }
 
   await validateUserExists(userId);
 

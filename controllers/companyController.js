@@ -50,10 +50,10 @@ const getAllCompany = catchAsyncErrors(async (req, res) => {
   await createCompanyTable();
 
   // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+  if (!req.user || !req.user.id) {
+    console.error("User ID is missing in the request");
+    return res.status(400).json({ error: "User ID is missing in the request" });
+  }
 
   const companyResult = await client.query(`
     SELECT companies.*, "users".id as created_by, "users".first_name as created_by_user
@@ -82,10 +82,10 @@ const getAllCompaniesOfUser = catchAsyncErrors(async (req, res) => {
   await createCompanyTable();
 
   // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+  if (!req.user || !req.user.id) {
+    console.error("User ID is missing in the request");
+    return res.status(400).json({ error: "User ID is missing in the request" });
+  }
 
   const userId = req.user.id;
 
@@ -108,10 +108,10 @@ const createCompany = catchAsyncErrors(async (req, res) => {
   await createCompanyTable();
 
   // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+  if (!req.user || !req.user.id) {
+    console.error("User ID is missing in the request");
+    return res.status(400).json({ error: "User ID is missing in the request" });
+  }
 
   const userId = req.user.id;
   const { name, website, isActive, stripeCustomerId, planId } = req.body;
@@ -122,10 +122,10 @@ const createCompany = catchAsyncErrors(async (req, res) => {
     return sendErrorResponse(res, 400, validationError);
   }
 
-  const existingCompany = await client.query('SELECT * FROM companies WHERE name = $1', [name]);
-  if (existingCompany.rows.length > 0) {
-    return sendErrorResponse(res, 400, "company name already taken");
-  }
+  // const existingCompany = await client.query('SELECT * FROM companies WHERE name = $1', [name]);
+  // if (existingCompany.rows.length > 0) {
+  //   return sendErrorResponse(res, 400, "company name already taken");
+  // }
 
   const companyData = {
     name,
@@ -175,10 +175,10 @@ const updateCompany = catchAsyncErrors(async (req, res) => {
   const { name, website, isActive, stripeCustomerId, planId } = req.body;
 
   // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+  if (!req.user || !req.user.id) {
+    console.error("User ID is missing in the request");
+    return res.status(400).json({ error: "User ID is missing in the request" });
+  }
 
   const validationError = validateCompanyInput(name, website, isActive, stripeCustomerId, planId);
   if (validationError) {
@@ -190,10 +190,10 @@ const updateCompany = catchAsyncErrors(async (req, res) => {
     return sendErrorResponse(res, 404, "Company not found");
   }
 
-  const duplicateCompany = await client.query('SELECT * FROM companies WHERE name = $1 AND id != $2', [name, companyId]);
-  if (duplicateCompany.rows.length > 0) {
-    return sendErrorResponse(res, 400, "Another company with this name already exists");
-  }
+  // const duplicateCompany = await client.query('SELECT * FROM companies WHERE name = $1 AND id != $2', [name, companyId]);
+  // if (duplicateCompany.rows.length > 0) {
+  //   return sendErrorResponse(res, 400, "Another company with this name already exists");
+  // }
 
   const updatedCompanyData = {
     name,
@@ -236,10 +236,10 @@ const deleteCompany = catchAsyncErrors(async (req, res) => {
   const companyId = req.params.id;
 
   // Check if req.user and req.user.id are defined
- if (!req.user || !req.user.id) {
-  console.error("User data is missing or incomplete in the request");
-  return res.status(400).json({ error: "User data is missing or incomplete in the request" });
-}
+  if (!req.user || !req.user.id) {
+    console.error("User ID is missing in the request");
+    return res.status(400).json({ error: "User ID is missing in the request" });
+  }
 
   const existingCompany = await client.query('SELECT * FROM companies WHERE id = $1', [companyId]);
   if (existingCompany.rows.length === 0) {

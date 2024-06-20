@@ -22,7 +22,8 @@ const verifyTokenAndExtractUserId = catchAsyncErrors(async(req, res, next) => {
 
         // If no token is found, return an error
         if (!token) {
-            return next(new ErrorHandler("No token provided", 401));
+            // return next(new ErrorHandler("No token provided", 401));
+            return sendErrorResponse(res, 401, "No token provided");
         }
 
     // Verify the token using your JWT secret key

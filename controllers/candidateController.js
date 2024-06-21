@@ -37,10 +37,10 @@ const createCandidate = [
     await createCandidateTable();
 
     // Check if req.user and req.user.id are defined
-    if (!req.user || !req.user.id) {
-      console.error("User ID is missing in the request");
-      return res.status(400).json({ error: "User ID is missing in the request" });
-    }
+    // if (!req.user || !req.user.id) {
+    //   console.error("User ID is missing in the request");
+    //   return res.status(400).json({ error: "User ID is missing in the request" });
+    // }
 
     // Check if a candidate with the same email already exists
     const existingCandidate = await client.query('SELECT * FROM "candidates" WHERE email = $1', [candidateData.email]);

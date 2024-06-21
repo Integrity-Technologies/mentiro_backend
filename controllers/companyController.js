@@ -6,7 +6,7 @@ const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const { sendErrorResponse } = require("../utils/res_error");
 
 // Helper function to validate company input
-const validateCompanyInput = (name, website, isActive, stripeCustomerId, planId) => {
+const validateCompanyInput = (name, website, isActive, stripeCustomerId, planId, job_title, company_size) => {
   if (!name || typeof name !== 'string' || name.trim() === '') {
     return "Invalid or missing 'company name'";
   }
@@ -21,6 +21,12 @@ const validateCompanyInput = (name, website, isActive, stripeCustomerId, planId)
   }
   if (planId && (typeof planId !== 'string' || planId.trim() === '')) {
     return "Invalid 'planId'";
+  }
+  if (job_title && (typeof job_title !== 'string' || job_title.trim() === '')) {
+    return "Invalid 'job_title'";
+  }
+  if (company_size && (typeof company_size !== 'string' || company_size.trim() === '')) {
+    return "Invalid 'company_size'";
   }
 
   // Optional: Check for maximum length constraints
@@ -103,24 +109,55 @@ const getAllCompaniesOfUser = catchAsyncErrors(async (req, res) => {
   res.status(200).json(userCompanies.rows);
 });
 
+// Helper function to find job role ID by name
+const findJobRole = async (name) => {
+  try {
+    const result = await client.query('SELECT id FROM job_roles WHERE name = $1', [name]);
+    if (result.rowCount > 0) {
+      return result.rows[0].id;
+    } else {
+      throw new Error('Invalid Job Role');
+    }
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Helper function to find company size ID by name
+const findCompanySize = async (name) => {
+  try {
+    const result = await client.query('SELECT id FROM company_sizes WHERE name = $1', [name]);
+    if (result.rowCount > 0) {
+      return result.rows[0].id;
+    } else {
+      throw new Error('Invalid Company Size');
+    }
+  } catch (error) {
+    throw error;
+  }
+};
+
 // Create company
 const createCompany = catchAsyncErrors(async (req, res) => {
   await createCompanyTable();
 
   // Check if req.user and req.user.id are defined
-  if (!req.user || !req.user.id) {
+  if (!req.user || !req.user.id ) {
     console.error("User ID is missing in the request");
     return res.status(400).json({ error: "User ID is missing in the request" });
   }
 
   const userId = req.user.id;
-  const { name, website, isActive, stripeCustomerId, planId } = req.body;
+  const { name, website, isActive, stripeCustomerId, planId, job_title, company_size } = req.body;
 
   // Validate company input
-  const validationError = validateCompanyInput(name, website, isActive, stripeCustomerId, planId);
+  const validationError = validateCompanyInput(name, website, isActive, stripeCustomerId, planId, job_title, company_size);
   if (validationError) {
     return sendErrorResponse(res, 400, validationError);
   }
+
+  const jobRoleId = await findJobRole(job_title);
+    const companySizeId = await findCompanySize(company_size);
 
   // const existingCompany = await client.query('SELECT * FROM companies WHERE name = $1', [name]);
   // if (existingCompany.rows.length > 0) {
@@ -134,6 +171,8 @@ const createCompany = catchAsyncErrors(async (req, res) => {
     isActive,
     stripeCustomerId,
     planId,
+    job_title_id: jobRoleId,
+    company_size_id: companySizeId,
   };
 
   const newCompany = await saveCompany(companyData);
@@ -147,6 +186,8 @@ const createCompany = catchAsyncErrors(async (req, res) => {
       isActive: newCompany.is_active,
       stripeCustomerId: newCompany.stripe_customer_id,
       planId: newCompany.plan_id,
+      job_title: newCompany.job_title_id,
+      company_size: newCompany.company_size_id,
     }
   });
 
@@ -172,7 +213,7 @@ const createCompany = catchAsyncErrors(async (req, res) => {
 // Update company
 const updateCompany = catchAsyncErrors(async (req, res) => {
   const companyId = req.params.id;
-  const { name, website, isActive, stripeCustomerId, planId } = req.body;
+  const { name, website, isActive, stripeCustomerId, planId, job_title, company_size } = req.body;
 
   // Check if req.user and req.user.id are defined
   if (!req.user || !req.user.id) {
@@ -180,7 +221,7 @@ const updateCompany = catchAsyncErrors(async (req, res) => {
     return res.status(400).json({ error: "User ID is missing in the request" });
   }
 
-  const validationError = validateCompanyInput(name, website, isActive, stripeCustomerId, planId);
+  const validationError = validateCompanyInput(name, website, isActive, stripeCustomerId, planId, job_title, company_size);
   if (validationError) {
     return sendErrorResponse(res, 400, validationError);
   }
@@ -189,6 +230,9 @@ const updateCompany = catchAsyncErrors(async (req, res) => {
   if (existingCompany.rows.length === 0) {
     return sendErrorResponse(res, 404, "Company not found");
   }
+
+  const jobRoleId = await findJobRole(job_title);
+    const companySizeId = await findCompanySize(company_size);
 
   // const duplicateCompany = await client.query('SELECT * FROM companies WHERE name = $1 AND id != $2', [name, companyId]);
   // if (duplicateCompany.rows.length > 0) {
@@ -201,11 +245,14 @@ const updateCompany = catchAsyncErrors(async (req, res) => {
     isActive: isActive !== undefined ? isActive : existingCompany.rows[0].is_active,
     stripeCustomerId: stripeCustomerId || existingCompany.rows[0].stripe_customer_id,
     planId: planId || existingCompany.rows[0].plan_id,
+    job_title_id: jobRoleId || existingCompany.rows[0].job_title_id,
+    company_size_id: companySizeId || existingCompany.rows[0].company_size_id,
   };
 
   await client.query(
-    'UPDATE companies SET name = $1, website = $2, is_active = $3, stripe_customer_id = $4, plan_id = $5 WHERE id = $6',
-    [updatedCompanyData.name, updatedCompanyData.website, updatedCompanyData.isActive, updatedCompanyData.stripeCustomerId, updatedCompanyData.planId, companyId]
+    'UPDATE companies SET name = $1, website = $2, is_active = $3, stripe_customer_id = $4, plan_id = $5, job_title_id = $6, company_size_id = $7 WHERE id = $8',
+    [updatedCompanyData.name, updatedCompanyData.website, updatedCompanyData.isActive, updatedCompanyData.stripeCustomerId, updatedCompanyData.planId,updatedCompanyData.job_title_id,
+      updatedCompanyData.company_size_id, companyId]
   );
 
   analytics.identify({
@@ -216,6 +263,8 @@ const updateCompany = catchAsyncErrors(async (req, res) => {
       isActive: updatedCompanyData.isActive,
       stripeCustomerId: updatedCompanyData.stripeCustomerId,
       planId: updatedCompanyData.planId,
+      job_title: updatedCompanyData.job_title_id,
+      company_size: updatedCompanyData.company_size_id,
     }
   });
 

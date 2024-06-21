@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS companies (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100),
     website VARCHAR(100),
+    job_title_id INTEGER REFERENCES job_roles(id),
+    company_size_id INTEGER REFERENCES company_sizes(id),
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_by INT,
@@ -31,6 +33,8 @@ const saveCompany = async (companyData) => {
   const {
     name,
     website,
+    job_title_id,
+    company_size_id,
     created_by,
     is_active,
     stripe_customer_id,
@@ -41,17 +45,21 @@ const saveCompany = async (companyData) => {
       INSERT INTO companies (
         name,
         website,
+        job_title_id,
+        company_size_id,
         created_by,
         is_active,
         stripe_customer_id,
         plan_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *;
     `;
     const values = [
       name,
       website || null,
+      job_title_id,
+      company_size_id,
       created_by,
       is_active ?? true,
       stripe_customer_id || null,

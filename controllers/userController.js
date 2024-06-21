@@ -35,6 +35,22 @@ const userValidationRules = [
     .isLength({ min: 10, max: 15 }).withMessage('Phone must be between 10 and 15 characters'),
 ];
 
+// update user validations rules
+const userUpdateValidationRules = [
+  body('first_name')
+    .isString().withMessage('First name must be a string')
+    .isLength({ min: 1 }).withMessage('First name is required'),
+  body('last_name')
+    .isString().withMessage('Last name must be a string')
+    .isLength({ min: 1 }).withMessage('Last name is required'),
+  body('email')
+    .isEmail().withMessage('Invalid email address')
+    .normalizeEmail(),
+  body('phone')
+    .isNumeric().withMessage('Phone must be numeric')
+    .isLength({ min: 10, max: 15 }).withMessage('Phone must be between 10 and 15 characters')
+];
+
 // Custom validation functions
 const validateUserExists = async (userId) => {
   const user = await client.query('SELECT * FROM "users" WHERE id = $1', [userId]);
@@ -445,11 +461,11 @@ const getUserDetails = catchAsyncErrors(async (req, res) => {
 
 // Edit user details (Admin)
 const editUser = [
-  ...userValidationRules,
+  ...userUpdateValidationRules,
   handleValidationErrors,
   catchAsyncErrors(async (req, res) => {
     const userId = req.params.id;
-    const { first_name, last_name, email, password, phone } = req.body;
+    const { first_name, last_name, email, phone } = req.body;
 
     await validateUserExists(userId);
 
@@ -459,20 +475,20 @@ const editUser = [
       return res.status(400).json({ error: "User ID is missing in the request" });
     }
 
-    let hashedPassword = null;
-    if (password) {
-      hashedPassword = await bcrypt.hash(password, 10);
-    }
+    // let hashedPassword = null;
+    // if (password) {
+    //   hashedPassword = await bcrypt.hash(password, 10);
+    // }
 
     const updateQuery = `
       UPDATE "users" 
-      SET first_name = $2, last_name = $3, email = $4, phone = $5 ${hashedPassword ? ', password = $6' : ''} 
+      SET first_name = $2, last_name = $3, email = $4, phone = $5 
       WHERE id = $1
     `;
     const values = [userId, first_name, last_name, email, phone];
-    if (hashedPassword) {
-      values.push(hashedPassword);
-    }
+    // if (hashedPassword) {
+    //   values.push(hashedPassword);
+    // }
     await client.query(updateQuery, values);
 
     analytics.identify({

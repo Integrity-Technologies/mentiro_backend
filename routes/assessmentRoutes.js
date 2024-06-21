@@ -22,7 +22,7 @@ router.get('/assessments',verifyTokenAndExtractUserId, getAllAssessments); // te
 router.get('/my/assessments', verifyTokenAndExtractUserId, getAllUserAssessments); // tested in postman successfully
 
 // Get assessment by shareable link
-router.get("/assessment/:uniqueLink", verifyTokenAndExtractUserId, getAssessmentByLink); // tested in postman successfully
+router.get("/assessment/:uniqueLink", getAssessmentByLink); // tested in postman successfully
 
 // Invite candidate By Email
 router.post('/invite/candidate', verifyTokenAndExtractUserId, inviteCandidate);

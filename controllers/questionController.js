@@ -32,7 +32,14 @@ const validateQuestionInput = [
     }),
 
   body('options')
-    .isArray({ min: 1 }).withMessage('Options must be an array with at least one option')
+    .isArray({ min: 1 }).withMessage('Options must be an array with at least one option'),
+    body('options.*.option_text').custom(value => {
+      if (typeof value !== 'string' && typeof value !== 'boolean') {
+        throw new Error('Option text must be a string or a boolean');
+      }
+      return true;
+    }),
+    body('options.*.is_correct').isBoolean().withMessage('is_correct must be a boolean')
   // .custom((options) => {
   //   if (options.some(option => typeof option.option_text !== 'string' || typeof option.is_correct !== 'boolean')) {
   //     throw new Error('Each option must have a string "option_text" and a boolean "is_correct"');
@@ -267,7 +274,7 @@ const updateQuestion = [
 
     const formattedOptions = options.map(option => ({
       is_correct: option.is_correct,
-      option_text: option.option_text.trim().escape()
+      option_text: typeof option.option_text === 'string' ? option.option_text.trim() : String(option.option_text)
     }));
 
     const answerData = {

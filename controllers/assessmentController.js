@@ -243,10 +243,10 @@ const getAssessmentByLink = catchAsyncErrors(async (req, res) => {
     }
 
     // Check if req.user and req.user.id are defined
-    if (!req.user || !req.user.id) {
-      console.error("User ID is missing in the request");
-      return res.status(400).json({ error: "User ID is missing in the request" });
-    }
+    // if (!req.user || !req.user.id) {
+    //   console.error("User ID is missing in the request");
+    //   return res.status(400).json({ error: "User ID is missing in the request" });
+    // }
 
     // Track the get assessment by link event in Segment
     analytics.track({

@@ -221,7 +221,7 @@ const updateCompany = catchAsyncErrors(async (req, res) => {
     return res.status(400).json({ error: "User ID is missing in the request" });
   }
 
-  const validationError = validateCompanyInput(name, website, isActive, stripeCustomerId, planId, job_title, company_size);
+  const validationError = validateCompanyInput(name);
   if (validationError) {
     return sendErrorResponse(res, 400, validationError);
   }
@@ -231,8 +231,12 @@ const updateCompany = catchAsyncErrors(async (req, res) => {
     return sendErrorResponse(res, 404, "Company not found");
   }
 
-  const jobRoleId = await findJobTitle(job_title);
-    const companySizeId = await findCompanySize(company_size);
+  let jobRoleId;
+  let companySizeId;
+  if(job_title && company_size){
+    jobRoleId = await findJobTitle(job_title);
+     companySizeId = await findCompanySize(company_size);
+  }
 
   // const duplicateCompany = await client.query('SELECT * FROM companies WHERE name = $1 AND id != $2', [name, companyId]);
   // if (duplicateCompany.rows.length > 0) {

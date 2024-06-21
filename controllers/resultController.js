@@ -71,10 +71,10 @@ const submitAnswer = catchAsyncErrors(async (req, res) => {
   // Validate test input
 
   // Check if req.user and req.user.id are defined
-  if (!req.user || !req.user.id) {
-    console.error("User ID is missing in the request");
-    return res.status(400).json({ error: "User ID is missing in the request" });
-  }
+  // if (!req.user || !req.user.id) {
+  //   console.error("User ID is missing in the request");
+  //   return res.status(400).json({ error: "User ID is missing in the request" });
+  // }
 
   // Ensure question_id is a number
   const questionId = parseInt(question_id, 10);
@@ -130,10 +130,10 @@ const createResult = catchAsyncErrors(async (req, res) => {
   }
 
   // Check if req.user and req.user.id are defined
-  if (!req.user || !req.user.id) {
-    console.error("User ID is missing in the request");
-    return res.status(400).json({ error: "User ID is missing in the request" });
-  }
+  // if (!req.user || !req.user.id) {
+  //   console.error("User ID is missing in the request");
+  //   return res.status(400).json({ error: "User ID is missing in the request" });
+  // }
 
   const existingResult = await client.query('SELECT * FROM results WHERE candidate_id = $1 AND test_id = $2 AND assessment_id = $3', [candidate_id, test_id, assessment_id]);
   if (existingResult.rows.length > 0) {

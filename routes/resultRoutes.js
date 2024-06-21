@@ -27,10 +27,10 @@ const {submitAnswer,createResult, getAllResults, getResultsByUser} = require('..
 const {verifyTokenAndExtractUserId} = require("../middleware/verifyToken");
 
 // Route to submit answer
-router.post('/submit', verifyTokenAndExtractUserId, submitAnswer);
+router.post('/submit', submitAnswer);
 
 // Route to create result
-router.post('/create', verifyTokenAndExtractUserId, createResult);
+router.post('/create', createResult);
 
 // Route to get all results
 router.get("/allResults",verifyTokenAndExtractUserId, getAllResults);

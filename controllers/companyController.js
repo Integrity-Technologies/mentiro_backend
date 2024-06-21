@@ -126,7 +126,7 @@ const findJobTitle = async (name) => {
 // Helper function to find company size ID by name
 const findCompanySize = async (name) => {
   try {
-    const result = await client.query('SELECT id FROM company_sizes WHERE size_range = $1', [name]);
+    const result = await client.query('SELECT id FROM company_size WHERE size_range = $1', [name]);
     if (result.rowCount > 0) {
       return result.rows[0].id;
     } else {

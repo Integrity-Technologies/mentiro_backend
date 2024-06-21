@@ -110,13 +110,13 @@ const getAllCompaniesOfUser = catchAsyncErrors(async (req, res) => {
 });
 
 // Helper function to find job role ID by name
-const findJobRole = async (name) => {
+const findJobTitle = async (name) => {
   try {
-    const result = await client.query('SELECT id FROM job_roles WHERE name = $1', [name]);
+    const result = await client.query('SELECT id FROM job_titles WHERE title = $1', [name]);
     if (result.rowCount > 0) {
       return result.rows[0].id;
     } else {
-      throw new Error('Invalid Job Role');
+      throw new Error('Invalid Job Title');
     }
   } catch (error) {
     throw error;
@@ -126,7 +126,7 @@ const findJobRole = async (name) => {
 // Helper function to find company size ID by name
 const findCompanySize = async (name) => {
   try {
-    const result = await client.query('SELECT id FROM company_sizes WHERE name = $1', [name]);
+    const result = await client.query('SELECT id FROM company_sizes WHERE size_range = $1', [name]);
     if (result.rowCount > 0) {
       return result.rows[0].id;
     } else {
@@ -156,7 +156,7 @@ const createCompany = catchAsyncErrors(async (req, res) => {
     return sendErrorResponse(res, 400, validationError);
   }
 
-  const jobRoleId = await findJobRole(job_title);
+  const jobRoleId = await findJobTitle(job_title);
     const companySizeId = await findCompanySize(company_size);
 
   // const existingCompany = await client.query('SELECT * FROM companies WHERE name = $1', [name]);
@@ -231,7 +231,7 @@ const updateCompany = catchAsyncErrors(async (req, res) => {
     return sendErrorResponse(res, 404, "Company not found");
   }
 
-  const jobRoleId = await findJobRole(job_title);
+  const jobRoleId = await findJobTitle(job_title);
     const companySizeId = await findCompanySize(company_size);
 
   // const duplicateCompany = await client.query('SELECT * FROM companies WHERE name = $1 AND id != $2', [name, companyId]);

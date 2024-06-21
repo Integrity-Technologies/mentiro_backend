@@ -104,7 +104,7 @@ const submitAnswer = catchAsyncErrors(async (req, res) => {
   await updateResult(resultId, result.questions, parseInt(scorePercentage.toFixed(2)));
 
   analytics.track({
-    userId: String(req.user?.id),
+    userId: String(req.user?.id || 'anonymous'),
     event: 'Answer Submitted',
     properties: {
       resultId,
@@ -164,7 +164,7 @@ const createResult = catchAsyncErrors(async (req, res) => {
   const result = await saveResult(resultData);
 
   analytics.identify({
-    userId: String(req.user?.id),
+    userId: String(req.user?.id || 'anonymous'),
     traits: {
       candidate_id: candidateId,
       test_id: testId,
@@ -174,7 +174,7 @@ const createResult = catchAsyncErrors(async (req, res) => {
   });
 
   analytics.track({
-    userId: String(req.user?.id),
+    userId: String(req.user?.id || 'anonymous'),
     event: 'Result Created',
     properties: {
       resultId: result.id,

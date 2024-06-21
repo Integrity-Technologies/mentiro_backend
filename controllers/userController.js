@@ -355,7 +355,8 @@ const forgotPassword = [
       // Generate a random reset token with expiration time
       const resetPasswordToken = crypto.randomBytes(20).toString('hex');
       const resetToken = crypto.createHash("sha256").update(resetPasswordToken).digest("hex");
-      const resetTokenExpiry = new Date(Date.now() + 15 * 60 * 1000);
+      // Set expiry time to 24 hours from now
+      const resetTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
       // Update user's reset token and expiry in the database
       await client.query('UPDATE "users" SET reset_token = $1, reset_token_expiry = $2 WHERE id = $3', [resetToken, resetTokenExpiry, user.id]);

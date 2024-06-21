@@ -4,15 +4,16 @@ const { client } = require("../db/index.js");
 const analytics = require('../segment/segmentConfig');
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const { sendEmail } = require("../utils/sendEmail.js");
-
 // Function to generate a unique random string
 const generateUniqueLink = async () => {
   let link;
   let shareableLink;
   let checkLinkResult;
+  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+  // console.log(process.env.BASE_URL + " from assessment controller");
   do {
     link = Math.random().toString(36).substring(2, 15);
-    shareableLink = `http://localhost:3000/api/assessment?${link}`; // Unique link directly appended
+    shareableLink = `${baseUrl}/api/assessment?${link}`; // Unique link directly appended
     const checkLinkQuery = `
       SELECT * FROM assessments WHERE uniquelink = $1
     `;
@@ -250,7 +251,7 @@ const getAssessmentByLink = catchAsyncErrors(async (req, res) => {
 
     // Track the get assessment by link event in Segment
     analytics.track({
-      userId: String(req.user?.id),
+      userId: String(req.user?.id || 'anonymous'),
       event: 'Get Assessment By Link',
       properties: {
         uniqueLink,
@@ -365,7 +366,7 @@ const createAssessment = async (req, res, next) => {
     const assessment = await saveAssessment(assessmentData);
 
     analytics.identify({
-      userId: String(req.user?.id),
+      userId: String(req.user?.id || 'anonymous'),
       traits: {
         assessmentId: assessment.id,
         assessment_name: assessment.assessment_name,
@@ -376,7 +377,7 @@ const createAssessment = async (req, res, next) => {
 
     // Identify the user who created the assessment in Segment
     analytics.identify({
-      userId: String(req.user?.id),
+      userId: String(req.user?.id || 'anonymous'),
       traits: {
         name: req.user.name,
         email: req.user.email,
@@ -385,7 +386,7 @@ const createAssessment = async (req, res, next) => {
 
     // Track the assessment creation event in Segment
     analytics.track({
-      userId: String(req.user?.id),
+      userId: String(req.user?.id || 'anonymous'),
       event: 'Assessment Created',
       properties: {
         assessmentId: assessment.id,
@@ -418,7 +419,7 @@ const getAllAssessments = catchAsyncErrors(async (req, res, next) => {
 
     // Track the get all assessments event in Segment
     analytics.track({
-      userId: String(req.user?.id),
+      userId: String(req.user?.id || 'anonymous'),
       event: 'Get All Assessments',
       properties: {
         viewedAt: new Date().toISOString(),
@@ -451,7 +452,7 @@ const getAllUserAssessments = catchAsyncErrors(async (req, res, next) => {
 
     // Track the get all user assessments event in Segment
     analytics.track({
-      userId: String(req.user?.id),
+      userId: String(req.user?.id || 'anonymous'),
       event: 'Get All User Assessments',
       properties: {
         userId,
@@ -500,7 +501,7 @@ const updateAssessment = catchAsyncErrors(async (req, res, next) => {
 
     // Identify the user who updated the assessment in Segment
     analytics.identify({
-      userId: String(req.user?.id),
+      userId: String(req.user?.id || 'anonymous'),
       traits: {
         name: req.user.name,
         email: req.user.email,
@@ -508,7 +509,7 @@ const updateAssessment = catchAsyncErrors(async (req, res, next) => {
     });
 
     analytics.identify({
-      userId: String(req.user?.id),
+      userId: String(req.user?.id || 'anonymous'),
       traits: {
         name: updateAssessment.assessment_name,
       }
@@ -516,7 +517,7 @@ const updateAssessment = catchAsyncErrors(async (req, res, next) => {
 
     // Track the assessment update event in Segment
     analytics.track({
-      userId: String(req.user?.id),
+      userId: String(req.user?.id || 'anonymous'),
       event: 'Assessment Updated',
       properties: {
         assessmentId: id,
@@ -552,7 +553,7 @@ const deleteAssessment = catchAsyncErrors(async (req, res, next) => {
 
     // Track the assessment deletion event in Segment
     analytics.track({
-      userId: String(req.user?.id),
+      userId: String(req.user?.id || 'anonymous'),
       event: 'Assessment Deleted',
       properties: {
         assessmentId: id,

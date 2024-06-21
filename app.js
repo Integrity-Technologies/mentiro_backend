@@ -11,6 +11,8 @@ const answerRoutes = require('./routes/answerRoutes');
 const workArrangementRoutes = require('./routes/workArrangement');
 const jobLocationRoutes = require('./routes/jobLocation');
 const jobRoleRoutes = require('./routes/jobRole');
+const jobTitleRoutes = require('./routes/jobTitle');
+const companySizeRoutes = require('./routes/companySize');
 const errorMiddleware = require('./middleware/error');
 
 const cors = require("cors");
@@ -46,6 +48,8 @@ app.use("/api/result", resultRoutes);
 app.use("/api/workArrangement",workArrangementRoutes);
 app.use("/api/jobRole",jobRoleRoutes);
 app.use("/api/jobLocation",jobLocationRoutes);
+app.use("/api/jobTitle",jobTitleRoutes);
+app.use("/api/companySize",companySizeRoutes);
 // app.use(errorMiddleware); // Error handling middleware 
 
 const server = app.listen(process.env.PORT, () => {

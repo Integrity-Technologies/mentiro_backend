@@ -73,4 +73,6 @@ const saveCandidate = async (candidateData) => {
   }
 };
 
+createCandidateTable();
+
 module.exports = { createCandidateTable, saveCandidate };

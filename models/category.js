@@ -55,4 +55,6 @@ const saveCategory = async (categoryData) => {
   }
 };
 
+createCategoryTable();
+
 module.exports = { createCategoryTable, saveCategory };

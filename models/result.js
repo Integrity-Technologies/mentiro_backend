@@ -119,4 +119,7 @@ const getResultById = async (resultId) => {
     throw error;
   }
 };
+
+createResultsTable();
+
 module.exports = { createResultsTable, saveResult, getResultById, updateResult };

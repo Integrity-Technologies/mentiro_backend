@@ -83,4 +83,7 @@ const getAnswerByQuestionId = async (question_id) => {
     throw error;
   }
 };
+
+createAnswersTable();
+
 module.exports = { createAnswersTable, saveAnswer, getAnswerByQuestionId };

@@ -45,4 +45,6 @@ const saveJobLocation = async (jobLocationName) => {
   }
 };
 
+createJobLocationsTable();
+
 module.exports = { createJobLocationsTable, saveJobLocation };

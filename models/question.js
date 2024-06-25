@@ -71,4 +71,6 @@ const saveQuestion = async (questionData) => {
   }
 };
 
+createQuestionTable();
+
 module.exports = { createQuestionTable, saveQuestion };

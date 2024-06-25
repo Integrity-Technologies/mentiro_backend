@@ -162,4 +162,7 @@ const saveAssessment = async (assessmentData) => {
     throw error;
   }
 };
+
+createAssessmentsTable();
+
 module.exports = { createAssessmentsTable, saveAssessment };

@@ -84,6 +84,32 @@ const getAllCompany = catchAsyncErrors(async (req, res) => {
 });
 
 // Get all companies of a specific user
+// const getAllCompaniesOfUser = catchAsyncErrors(async (req, res) => {
+//   await createCompanyTable();
+
+//   // Check if req.user and req.user.id are defined
+//   if (!req.user || !req.user.id) {
+//     console.error("User ID is missing in the request");
+//     return res.status(400).json({ error: "User ID is missing in the request" });
+//   }
+
+//   const userId = req.user.id;
+
+//   const userCompanies = await client.query('SELECT * FROM companies WHERE created_by = $1', [userId]);
+
+//   analytics.track({
+//     userId: String(userId),
+//     event: 'User Viewed Their Companies',
+//     properties: {
+//       viewedAt: new Date().toISOString(),
+//       companyCount: userCompanies.rows.length,
+//     }
+//   });
+
+//   res.status(200).json(userCompanies.rows);
+// });
+
+// Get all companies of a specific user
 const getAllCompaniesOfUser = catchAsyncErrors(async (req, res) => {
   await createCompanyTable();
 
@@ -95,7 +121,17 @@ const getAllCompaniesOfUser = catchAsyncErrors(async (req, res) => {
 
   const userId = req.user.id;
 
-  const userCompanies = await client.query('SELECT * FROM companies WHERE created_by = $1', [userId]);
+  const query = `
+    SELECT companies.id, companies.name, companies.website, companies.created_date, companies.updated_date, 
+           companies.is_active, companies.stripe_customer_id, companies.plan_id,
+           company_size.size_range AS company_size, job_titles.title AS job_title
+    FROM companies
+    LEFT JOIN company_size ON companies.company_size_id = company_size.id
+    LEFT JOIN job_titles ON companies.job_title_id = job_titles.id
+    WHERE companies.created_by = $1
+  `;
+
+  const userCompanies = await client.query(query, [userId]);
 
   analytics.track({
     userId: String(userId),
@@ -108,6 +144,7 @@ const getAllCompaniesOfUser = catchAsyncErrors(async (req, res) => {
 
   res.status(200).json(userCompanies.rows);
 });
+
 
 // Helper function to find job role ID by name
 const findJobTitle = async (name) => {

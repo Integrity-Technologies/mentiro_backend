@@ -23,21 +23,21 @@
 
 // module.exports = {sendEmail};
 
+require('dotenv').config();
 const { ServerClient } = require('postmark');
-
+console.log(process.env.POSTMARK_API_TOKEN, " from sendEmail.js file");
 const postmarkClient = new ServerClient(process.env.POSTMARK_API_TOKEN);
-
 
 const sendEmail = async (options) => {
   try {
     const message = {
       From: process.env.POSTMARK_SENDER_EMAIL,
       To: options.email,
-      Subject: options.subject,
-      HtmlBody: options.message,
+      TemplateId: options.templateId,
+      TemplateModel: options.templateModel,
     };
 
-    await postmarkClient.sendEmail(message);
+    await postmarkClient.sendEmailWithTemplate(message);
 
     console.log(`Email sent successfully to ${options.email}`);
   } catch (error) {

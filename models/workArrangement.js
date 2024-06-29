@@ -46,6 +46,5 @@ const saveWorkArrangement = async (workArrangementName) => {
     }
   };
 
-  createWorkArrangementsTable();
 
 module.exports = { createWorkArrangementsTable, saveWorkArrangement };

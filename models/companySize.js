@@ -45,6 +45,5 @@ const saveCompanySize = async (sizeRange) => {
   }
 };
 
-createCompanySizeTable();
 
 module.exports = { createCompanySizeTable, saveCompanySize };

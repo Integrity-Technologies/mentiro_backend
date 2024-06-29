@@ -147,18 +147,54 @@ const getAllCompaniesOfUser = catchAsyncErrors(async (req, res) => {
 
 
 // Helper function to find job role ID by name
-const findJobTitle = async (name) => {
+// const findJobTitle = async (name) => {
+//   try {
+//     const result = await client.query('SELECT id FROM job_titles WHERE title = $1', [name]);
+//     if (result.rowCount > 0) {
+//       return result.rows[0].id;
+//     } else {
+//       throw new Error('Invalid Job Title');
+//     }
+//   } catch (error) {
+//     throw error;
+//   }
+// };
+
+// const findOrCreateJobTitle = async (name) => {
+//   try {
+//     const result = await client.query('SELECT id FROM job_titles WHERE title = $1', [name]);
+//     if (result.rowCount > 0) {
+//       return result.rows[0].id;
+//     } else {
+//       const insertResult = await client.query(
+//         'INSERT INTO job_titles (title) VALUES ($1) RETURNING id',
+//         [name]
+//       );
+//       return insertResult.rows[0].id;
+//     }
+//   } catch (error) {
+//     throw error;
+//   }
+// };
+const findOrCreateJobTitle = async (name) => {
   try {
-    const result = await client.query('SELECT id FROM job_titles WHERE title = $1', [name]);
+    // Check if the job title exists with custom = false
+    const result = await client.query('SELECT id FROM job_titles WHERE title = $1 AND custom = false', [name]);
     if (result.rowCount > 0) {
       return result.rows[0].id;
     } else {
-      throw new Error('Invalid Job Title');
+      // Insert the new custom job title
+      const insertResult = await client.query(
+        'INSERT INTO job_titles (title, custom) VALUES ($1, $2) RETURNING id',
+        [name, true]
+      );
+      return insertResult.rows[0].id;
     }
   } catch (error) {
     throw error;
   }
 };
+
 
 // Helper function to find company size ID by name
 const findCompanySize = async (name) => {
@@ -193,7 +229,7 @@ const createCompany = catchAsyncErrors(async (req, res) => {
     return sendErrorResponse(res, 400, validationError);
   }
 
-  const jobRoleId = await findJobTitle(job_title);
+  const jobRoleId = await findOrCreateJobTitle(job_title);
     const companySizeId = await findCompanySize(company_size);
 
   // const existingCompany = await client.query('SELECT * FROM companies WHERE name = $1', [name]);
@@ -271,7 +307,7 @@ const updateCompany = catchAsyncErrors(async (req, res) => {
   let jobRoleId;
   let companySizeId;
   if(job_title && company_size){
-    jobRoleId = await findJobTitle(job_title);
+    jobRoleId = await findOrCreateJobTitle(job_title);
      companySizeId = await findCompanySize(company_size);
   }
 

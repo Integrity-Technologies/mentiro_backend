@@ -366,11 +366,19 @@ const forgotPassword = [
       const message = `Your password reset token is as follows: \n\n${resetUrl}\n\nIf you have not requested this email, then ignore it.`;
 
       try {
+        // await sendEmail({
+        //   email: user.email,
+        //   subject: 'Password Recovery',
+        //   message
+        // });
         await sendEmail({
           email: user.email,
-          subject: 'Password Recovery',
-          message,
-        });
+    templateId: 36437115,
+    templateModel: {
+      resetUrl: resetUrl,
+      // Add other template model variables if needed
+    }
+        })
 
         analytics.track({
           userId: String(user.id),
@@ -386,7 +394,7 @@ const forgotPassword = [
         });
       } catch (error) {
         // Reset token and expiry on failure
-        await client.query('UPDATE "users" SET reset_password_token = NULL, reset_password_expiry = NULL WHERE id = $1', [user.id]);
+        await client.query('UPDATE "users" SET reset_token = NULL, reset_token_expiry = NULL WHERE id = $1', [user.id]);
         console.error("Error occurred while sending email:", error);
         return res.status(500).json({ error: error.message });
       }

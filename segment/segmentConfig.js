@@ -7,7 +7,6 @@ const dotenv = require('dotenv');
 dotenv.config({ path: './config/config.env' });
 
 const analytics = new Analytics({
-  // writeKey: "Fc746gEKNf9xtgCO3ErDhjvNzX4jkblg"
   writeKey: process.env.SEGMENT_WRITE_KEY
 });
 

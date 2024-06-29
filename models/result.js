@@ -120,6 +120,5 @@ const getResultById = async (resultId) => {
   }
 };
 
-createResultsTable();
 
 module.exports = { createResultsTable, saveResult, getResultById, updateResult };

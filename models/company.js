@@ -74,6 +74,5 @@ const saveCompany = async (companyData) => {
   }
 };
 
-createCompanyTable();
 
 module.exports = { createCompanyTable, saveCompany };

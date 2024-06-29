@@ -163,6 +163,5 @@ const saveAssessment = async (assessmentData) => {
   }
 };
 
-createAssessmentsTable();
 
 module.exports = { createAssessmentsTable, saveAssessment };

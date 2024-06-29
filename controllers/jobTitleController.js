@@ -13,14 +13,24 @@ const saveJobTitleValues = async (req, res) => {
   }
 };
 
+// const getAllJobTitles = async (req, res) => {
+//   try {
+//     const result = await client.query('SELECT * FROM job_titles');
+//     res.status(200).json(result.rows);
+//   } catch (error) {
+//     console.error("Error fetching job titles:", error.message);
+//     res.status(500).json({ error: "Error fetching job titles" });
+//   }
+// };
 const getAllJobTitles = async (req, res) => {
   try {
-    const result = await client.query('SELECT * FROM job_titles');
+    const result = await client.query('SELECT id, title FROM job_titles WHERE custom = false');
     res.status(200).json(result.rows);
   } catch (error) {
-    console.error("Error fetching job titles:", error.message);
-    res.status(500).json({ error: "Error fetching job titles" });
+    console.error("Error fetching job titles:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
+
 
 module.exports = { saveJobTitleValues, getAllJobTitles };

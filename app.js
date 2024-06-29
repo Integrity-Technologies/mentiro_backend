@@ -14,6 +14,7 @@ const jobRoleRoutes = require('./routes/jobRole');
 const jobTitleRoutes = require('./routes/jobTitle');
 const companySizeRoutes = require('./routes/companySize');
 const errorMiddleware = require('./middleware/error');
+const {initializeTables} = require("./utils/initializeTables");
 
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -52,9 +53,21 @@ app.use("/api/jobTitle",jobTitleRoutes);
 app.use("/api/companySize",companySizeRoutes);
 // app.use(errorMiddleware); // Error handling middleware 
 
-const server = app.listen(process.env.PORT, () => {
-  console.log(`Server is running on http://localhost:${process.env.PORT}`);
-});
+// const server = app.listen(process.env.PORT, () => {
+//   console.log(`Server is running on http://localhost:${process.env.PORT}`);
+// });
+const startServer = async () => {
+  try {
+    await initializeTables(); // Initialize tables before starting the server
+    app.listen(process.env.PORT, () => {
+      console.log(`Server is running on http://localhost:${process.env.PORT}`);
+    });
+  } catch (error) {
+    console.error("Error during server initialization:", error);
+  }
+};
+
+startServer();
 
 // unhandled Promise Rejection
 process.on("unhandledRejection",err=>{

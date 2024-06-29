@@ -5,7 +5,8 @@ const { client } = require("../db/index.js");
 const createJobTitlesTableQuery = `
 CREATE TABLE IF NOT EXISTS job_titles (
     id SERIAL PRIMARY KEY,
-    title VARCHAR(255) NOT NULL UNIQUE
+    title VARCHAR(255) NOT NULL UNIQUE,
+    custom BOOLEAN DEFAULT false
 );
 `;
 
@@ -45,6 +46,5 @@ const saveJobTitle = async (title) => {
   }
 };
 
-createJobTitlesTable();
 
 module.exports = { createJobTitlesTable, saveJobTitle };

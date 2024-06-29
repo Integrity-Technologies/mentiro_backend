@@ -108,6 +108,5 @@ const saveUser = async (userData) => {
   }
 };
 
-createUserTable();
 
 module.exports = { createUserTable, saveUser };

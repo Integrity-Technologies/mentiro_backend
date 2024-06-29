@@ -45,6 +45,5 @@ const saveJobRole = async (jobRoleName) => {
   }
 };
 
-createJobRolesTable();
 
 module.exports = { createJobRolesTable, saveJobRole };

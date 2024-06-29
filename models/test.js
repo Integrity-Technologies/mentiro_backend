@@ -65,6 +65,5 @@ const saveTest = async (testData) => {
   }
 };
 
-createTestsTable();
 
 module.exports = { createTestsTable, saveTest };

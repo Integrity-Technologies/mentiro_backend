@@ -4,6 +4,7 @@ const { client } = require("../db/index.js");
 const analytics = require('../segment/segmentConfig');
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const { sendErrorResponse } = require("../utils/res_error");
+const { sendEmail } = require("../utils/sendEmail.js");
 const { body, validationResult } = require('express-validator');
 
 // Common validation rules for candidate
@@ -27,7 +28,62 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
-// Create candidate
+// Create candidate function without magic link
+// const createCandidate = [
+//   ...candidateValidationRules,
+//   handleValidationErrors,
+//   catchAsyncErrors(async (req, res) => {
+//     const candidateData = req.body;
+
+//     await createCandidateTable();
+
+//     // Check if req.user and req.user.id are defined
+//     // if (!req.user || !req.user.id) {
+//     //   console.error("User ID is missing in the request");
+//     //   return res.status(400).json({ error: "User ID is missing in the request" });
+//     // }
+
+//     // Check if a candidate with the same email already exists
+//     const existingCandidate = await client.query('SELECT * FROM "candidates" WHERE email = $1', [candidateData.email]);
+//     if (existingCandidate.rows.length > 0) {
+//       return sendErrorResponse(res, 409, 'Candidate with this email already exists');
+//     }
+
+//     try {
+//       // Save the candidate data
+//       const newCandidate = await saveCandidate(candidateData);
+
+//       // Identify the candidate in Segment
+//       analytics.identify({
+//         userId: String(newCandidate.id),
+//         traits: {
+//           email: newCandidate.email,
+//           firstName: newCandidate.first_name,
+//           lastName: newCandidate.last_name,
+//         }
+//       });
+
+//       // Track the candidate creation event in Segment
+//       analytics.track({
+//         userId: String(newCandidate.id),
+//         event: 'Candidate Created',
+//         properties: {
+//           email: newCandidate.email,
+//           firstName: newCandidate.first_name,
+//           lastName: newCandidate.last_name,
+//           createdAt: new Date().toISOString(),
+//         }
+//       });
+
+//       res.status(201).json(newCandidate);
+//     } catch (error) {
+//       console.error("Error occurred:", error);
+//       res.status(500).json({ error: error.message });
+//     }
+//   })
+// ];
+
+// create candidate function with magic link
 const createCandidate = [
   ...candidateValidationRules,
   handleValidationErrors,
@@ -36,45 +92,87 @@ const createCandidate = [
 
     await createCandidateTable();
 
-    // Check if req.user and req.user.id are defined
-    // if (!req.user || !req.user.id) {
-    //   console.error("User ID is missing in the request");
-    //   return res.status(400).json({ error: "User ID is missing in the request" });
-    // }
-
-    // Check if a candidate with the same email already exists
-    const existingCandidate = await client.query('SELECT * FROM "candidates" WHERE email = $1', [candidateData.email]);
-    if (existingCandidate.rows.length > 0) {
-      return sendErrorResponse(res, 409, 'Candidate with this email already exists');
-    }
-
     try {
-      // Save the candidate data
-      const newCandidate = await saveCandidate(candidateData);
+      // Check if a candidate with the same email already exists
+      const existingCandidate = await client.query('SELECT * FROM "candidates" WHERE email = $1', [candidateData.email]);
 
-      // Identify the candidate in Segment
-      analytics.identify({
-        userId: String(newCandidate.id),
-        traits: {
-          email: newCandidate.email,
-          firstName: newCandidate.first_name,
-          lastName: newCandidate.last_name,
-        }
-      });
+      let candidate;
+      let newCandidateCreated = false;
+      if (existingCandidate.rows.length === 0) {
+        // Create a new candidate if not already exists
+        candidate = await saveCandidate(candidateData);
+        newCandidateCreated = true; // Set the flag to true
 
-      // Track the candidate creation event in Segment
-      analytics.track({
-        userId: String(newCandidate.id),
-        event: 'Candidate Created',
-        properties: {
-          email: newCandidate.email,
-          firstName: newCandidate.first_name,
-          lastName: newCandidate.last_name,
-          createdAt: new Date().toISOString(),
-        }
-      });
+        // Identify the new candidate in Segment
+        analytics.identify({
+          userId: String(candidate.id),
+          traits: {
+            email: candidate.email,
+            firstName: candidate.first_name,
+            lastName: candidate.last_name,
+          }
+        });
 
-      res.status(201).json(newCandidate);
+        // Track the candidate creation event in Segment
+        analytics.track({
+          userId: String(candidate.id),
+          event: 'Candidate Created',
+          properties: {
+            email: candidate.email,
+            firstName: candidate.first_name,
+            lastName: candidate.last_name,
+            createdAt: new Date().toISOString(),
+          }
+        });
+      } else {
+        // If candidate already exists, use the existing candidate data
+        candidate = existingCandidate.rows[0];
+      }
+
+      // Generate the link with the unique identifier from the request body
+      const uniqueIdentifier = candidateData.uniquelink; // Ensure this field is in the request body
+      const link = `${req.protocol}://${req.get("host")}/assessment?${uniqueIdentifier}/tests`;
+
+      // Send the email with the link
+      try {
+        await sendEmail({
+          email: candidate.email,
+          templateId: 36437115, // Use the appropriate template ID
+          templateModel: {
+            assessmentLink: link,
+          }
+        });
+
+        // Track the email sent event in Segment
+        analytics.track({
+          userId: String(candidate.id),
+          event: 'Assessment Link Sent',
+          properties: {
+            email: candidate.email,
+            linkSentAt: new Date().toISOString(),
+          }
+        });
+
+        // Construct the response message
+        const emailMessage = `Email sent to ${candidate.email} successfully`;
+        const creationMessage = newCandidateCreated ? 'Candidate created.' : `Welcome back ${candidate.first_name}`;
+
+        res.status(200).json({
+          success: true,
+          emailMessage,
+          creationMessage,
+          link
+        });
+
+        // res.status(200).json({
+        //   success: true,
+        //   message: `Email sent to ${candidate.email} successfully`,
+        //   link
+        // });
+      } catch (error) {
+        console.error("Error occurred while sending email:", error);
+        return res.status(500).json({ error: error.message });
+      }
     } catch (error) {
       console.error("Error occurred:", error);
       res.status(500).json({ error: error.message });

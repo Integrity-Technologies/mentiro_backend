@@ -25,7 +25,6 @@
 
 require('dotenv').config();
 const { ServerClient } = require('postmark');
-console.log(process.env.POSTMARK_API_TOKEN, " from sendEmail.js file");
 const postmarkClient = new ServerClient(process.env.POSTMARK_API_TOKEN);
 
 const sendEmail = async (options) => {

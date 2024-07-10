@@ -135,10 +135,10 @@ const createResult = catchAsyncErrors(async (req, res) => {
   //   return res.status(400).json({ error: "User ID is missing in the request" });
   // }
 
-  const existingResult = await client.query('SELECT * FROM results WHERE candidate_id = $1 AND test_id = $2 AND assessment_id = $3', [candidate_id, test_id, assessment_id]);
-  if (existingResult.rows.length > 0) {
-    return sendErrorResponse(res, 409, "Result already exists for this candidate, test, and assessment combination");
-  }
+  // const existingResult = await client.query('SELECT * FROM results WHERE candidate_id = $1 AND test_id = $2 AND assessment_id = $3', [candidate_id, test_id, assessment_id]);
+  // if (existingResult.rows.length > 0) {
+  //   return sendErrorResponse(res, 409, "Result already exists for this candidate, test, and assessment combination");
+  // }
 
   const candidateId = await validateId(candidate_id, 'SELECT id FROM "candidates" WHERE id = $1', `Candidate '${candidate_id}' not found`);
   const testId = await validateId(test_id, 'SELECT id FROM "tests" WHERE id = $1', `Test '${test_id}' not found`);
@@ -286,19 +286,365 @@ const getAllResults = catchAsyncErrors(async (req, res) => {
 });
 
 // get results for user assessments
-const getResultsByUser = catchAsyncErrors(async (req, res) => {
+// const getResultsByUser = catchAsyncErrors(async (req, res) => {
 
-  // Check if req.user and req.user.id are defined
+//   // Check if req.user and req.user.id are defined
+//   if (!req.user || !req.user.id) {
+//     console.error("User ID is missing in the request");
+//     return res.status(400).json({ error: "User ID is missing in the request" });
+//   }
+
+//   const userId = req.user.id; // Assume userId is extracted from the token
+
+//   await createResultsTable();
+
+//   // Fetch assessments created by the user
+//   const assessmentsQuery = 'SELECT * FROM "assessments" WHERE created_by = $1';
+//   const assessmentsResult = await client.query(assessmentsQuery, [userId]);
+
+//   if (assessmentsResult.rows.length === 0) {
+//     return res.status(200).json({ error: "No assessments found for this user" });
+//   }
+
+//   const assessments = assessmentsResult.rows;
+//   const assessmentIds = assessments.map(assessment => assessment.id);
+
+//   // Fetch results for these assessments
+//   const resultsQuery = 'SELECT * FROM "results" WHERE assessment_id = ANY($1)';
+//   const results = await client.query(resultsQuery, [assessmentIds]);
+
+//   if (results.rows.length === 0) {
+//     return res.status(200).json({ error: "No results found for these assessments" });
+//   }
+
+//   // Fetch candidate names and emails for each result
+//   const candidateIds = results.rows.map(result => result.candidate_id);
+//   const candidateQuery = 'SELECT id, first_name, email FROM "candidates" WHERE id = ANY($1)';
+//   const candidateResult = await client.query(candidateQuery, [candidateIds]);
+//   const candidatesMap = new Map(candidateResult.rows.map(candidate => [candidate.id, { name: candidate.first_name, email: candidate.email }]));
+
+//   // Fetch assessment names and tests
+//   const assessmentsMap = new Map(assessments.map(assessment => [assessment.id, assessment]));
+
+//   // Group results by candidate id
+//   const resultsByCandidate = results.rows.reduce((acc, result) => {
+//     const { candidate_id, company_id, started_at, ...rest } = result;
+//     const candidate = acc[candidate_id] || {
+//       id: candidate_id,
+//       candidate_name: candidatesMap.get(candidate_id).name,
+//       candidate_email: candidatesMap.get(candidate_id).email,
+//       companies: new Set(),
+//       assessments: [],
+//     };
+
+//     // Add company ID to the candidate's company list
+//     candidate.companies.add(company_id);
+
+//     // Find or create assessment
+//     let assessmentIndex = candidate.assessments.findIndex(assessment => assessment.name === assessmentsMap.get(result.assessment_id).assessment_name);
+//     if (assessmentIndex === -1) {
+//       assessmentIndex = candidate.assessments.length;
+//       candidate.assessments.push({
+//         name: assessmentsMap.get(result.assessment_id).assessment_name,
+//         tests: [],
+//         started_at: started_at
+//       });
+//     }
+
+//     // Find or create test
+//     const assessment = assessmentsMap.get(result.assessment_id);
+//     const testDetails = assessment.tests.find(test => test.test_id === result.test_id);
+//     if (!testDetails) return acc; // Skip if no test details found
+
+//     let testIndex = candidate.assessments[assessmentIndex].tests.findIndex(test => test.name === testDetails.test_name);
+//     if (testIndex === -1) {
+//       testIndex = candidate.assessments[assessmentIndex].tests.length;
+//       candidate.assessments[assessmentIndex].tests.push({
+//         name: testDetails.test_name,
+//         // total_questions: testDetails.questions.length,
+//         total_questions:testDetails.total_questions,
+//         attempted_questions: rest.questions ? rest.questions.length : 0,
+//         score: rest.score,
+//         status: rest.questions && rest.questions.length > 0 ?
+//           (rest.questions.length === testDetails.total_questions ? 'Attempted' : `Attempted ${rest.questions.length} questions`) :
+//           'Not attempted any questions from this test',
+//       });
+//     }
+
+//     return { ...acc, [candidate_id]: candidate };
+//   }, {});
+
+//   // Calculate assessment percentage and score for each assessment
+//   Object.values(resultsByCandidate).forEach(candidate => {
+//     candidate.assessments.forEach(assessment => {
+//       let totalScore = 0;
+//       let totalTests = 0;
+
+//       assessment.tests.forEach(test => {
+//         totalScore += test.score || 0;
+//         totalTests++;
+//       });
+
+//       assessment.assessment_score = totalScore;
+//       assessment.assessment_percentage = calculatePercentage(totalScore, totalTests * 100);
+//     });
+//     // Convert Set of companies to an array
+//     candidate.companies = Array.from(candidate.companies);
+//   });
+
+//   // Filter out assessments without results
+//   assessments.forEach(assessment => {
+//     const assessmentName = assessment.assessment_name;
+//     const tests = assessment.tests;
+
+//     tests.forEach(test => {
+//       results.rows.forEach(result => {
+//         if (result.assessment_id !== assessment.id) return; // Skip unrelated assessments
+
+//         if (!resultsByCandidate[result.candidate_id]) {
+//           resultsByCandidate[result.candidate_id] = {
+//             id: result.candidate_id,
+//             candidate_name: candidatesMap.get(result.candidate_id).name,
+//             candidate_email: candidatesMap.get(result.candidate_id).email,
+//             companies: new Set(),
+//             assessments: [],
+//           };
+//         }
+
+//         let candidateAssessments = resultsByCandidate[result.candidate_id].assessments;
+//         let assessmentIndex = candidateAssessments.findIndex(a => a.name === assessmentName);
+//         if (assessmentIndex === -1) {
+//           assessmentIndex = candidateAssessments.length;
+//           candidateAssessments.push({
+//             name: assessmentName,
+//             tests: [],
+//             started_at: result.started_at,
+//           });
+//         }
+
+//         let testIndex = candidateAssessments[assessmentIndex].tests.findIndex(t => t.name === test.test_name);
+//         if (testIndex === -1) {
+//           candidateAssessments[assessmentIndex].tests.push({
+//             name: test.test_name,
+//             // total_questions: test.questions.length,
+//             total_questions:test.total_questions, 
+//             attempted_questions: 0,
+//             status: 'Not attempted',
+//           });
+//         }
+//       });
+//     });
+//   });
+
+//   const resultsWithNames = Object.values(resultsByCandidate);
+
+//   // Track the getResultsByUser event in Segment
+//   analytics.track({
+//     userId: String(req.user?.id),
+//     event: 'Results viewed By User',
+//     properties: {
+//       count: results.rows.length,
+//       fetched_at: new Date().
+//         toISOString(),
+//     }
+//   });
+
+//   res.status(200).json(resultsWithNames);
+// });
+
+// with previous attempt functionality
+// const getResultsByUser = catchAsyncErrors(async (req, res) => {
+//   if (!req.user || !req.user.id) {
+//     console.error("User ID is missing in the request");
+//     return res.status(400).json({ error: "User ID is missing in the request" });
+//   }
+
+//   const userId = req.user.id; // Assume userId is extracted from the token
+
+//   await createResultsTable();
+
+//   // Fetch assessments created by the user
+//   const assessmentsQuery = 'SELECT * FROM "assessments" WHERE created_by = $1';
+//   const assessmentsResult = await client.query(assessmentsQuery, [userId]);
+
+//   if (assessmentsResult.rows.length === 0) {
+//     return res.status(200).json({ error: "No assessments found for this user" });
+//   }
+
+//   const assessments = assessmentsResult.rows;
+//   const assessmentIds = assessments.map(assessment => assessment.id);
+
+//   // Fetch results for these assessments
+//   const resultsQuery = 'SELECT * FROM "results" WHERE assessment_id = ANY($1)';
+//   const results = await client.query(resultsQuery, [assessmentIds]);
+
+//   if (results.rows.length === 0) {
+//     return res.status(200).json({ error: "No results found for these assessments" });
+//   }
+
+//   // Fetch candidate names and emails for each result
+//   const candidateIds = results.rows.map(result => result.candidate_id);
+//   const candidateQuery = 'SELECT id, first_name, email FROM "candidates" WHERE id = ANY($1)';
+//   const candidateResult = await client.query(candidateQuery, [candidateIds]);
+//   const candidatesMap = new Map(candidateResult.rows.map(candidate => [candidate.id, { name: candidate.first_name, email: candidate.email }]));
+
+//   // Fetch assessment names and tests
+//   const assessmentsMap = new Map(assessments.map(assessment => [assessment.id, assessment]));
+
+//   // Group results by candidate id
+//   const resultsByCandidate = results.rows.reduce((acc, result) => {
+//     const { candidate_id, company_id, started_at, ...rest } = result;
+//     const candidate = acc[candidate_id] || {
+//       id: candidate_id,
+//       candidate_name: candidatesMap.get(candidate_id).name,
+//       candidate_email: candidatesMap.get(candidate_id).email,
+//       companies: new Set(),
+//       assessments: [],
+//     };
+
+//     // Add company ID to the candidate's company list
+//     candidate.companies.add(company_id);
+
+//     // Find or create assessment
+//     let assessmentIndex = candidate.assessments.findIndex(assessment => assessment.name === assessmentsMap.get(result.assessment_id).assessment_name);
+//     if (assessmentIndex === -1) {
+//       assessmentIndex = candidate.assessments.length;
+//       candidate.assessments.push({
+//         name: assessmentsMap.get(result.assessment_id).assessment_name,
+//         tests: [],
+//         started_at: started_at,
+//         previous_attempts: []
+//       });
+//     }
+
+//     // Find or create test
+//     const assessment = assessmentsMap.get(result.assessment_id);
+//     const testDetails = assessment.tests.find(test => test.test_id === result.test_id);
+//     if (!testDetails) return acc; // Skip if no test details found
+
+//     let testIndex = candidate.assessments[assessmentIndex].tests.findIndex(test => test.name === testDetails.test_name);
+//     if (testIndex === -1) {
+//       candidate.assessments[assessmentIndex].tests.push({
+//         name: testDetails.test_name,
+//         total_questions: testDetails.total_questions,
+//         attempted_questions: rest.questions ? rest.questions.length : 0,
+//         score: rest.score,
+//         status: rest.questions && rest.questions.length > 0 ?
+//           (rest.questions.length === testDetails.total_questions ? 'Attempted' : `Attempted ${rest.questions.length} questions`) :
+//           'Not attempted any questions from this test',
+//       });
+//     } else {
+//       // Store the current test details temporarily
+//       const currentTestDetails = candidate.assessments[assessmentIndex].tests[testIndex];
+
+//       // Update the test details with the latest attempt
+//       candidate.assessments[assessmentIndex].tests[testIndex] = {
+//         ...currentTestDetails,
+//         score: rest.score,
+//         attempted_questions: rest.questions ? rest.questions.length : 0,
+//         status: rest.questions && rest.questions.length > 0 ?
+//           (rest.questions.length === testDetails.total_questions ? 'Attempted' : `Attempted ${rest.questions.length} questions`) :
+//           'Not attempted any questions from this test',
+//       };
+
+//       // Store the previous attempt score
+//       if (currentTestDetails.score !== rest.score) {
+//         candidate.assessments[assessmentIndex].previous_attempts.push({
+//           score: currentTestDetails.score
+//         });
+//       }
+//     }
+
+//     return { ...acc, [candidate_id]: candidate };
+//   }, {});
+
+//   // Calculate assessment percentage and score for each assessment
+//   Object.values(resultsByCandidate).forEach(candidate => {
+//     candidate.assessments.forEach(assessment => {
+//       let totalScore = 0;
+//       let totalTests = 0;
+
+//       assessment.tests.forEach(test => {
+//         totalScore += test.score || 0;
+//         totalTests++;
+//       });
+
+//       assessment.assessment_score = totalScore;
+//       assessment.assessment_percentage = calculatePercentage(totalScore, totalTests * 100);
+//     });
+//     // Convert Set of companies to an array
+//     candidate.companies = Array.from(candidate.companies);
+//   });
+
+//   // Filter out assessments without results
+//   assessments.forEach(assessment => {
+//     const assessmentName = assessment.assessment_name;
+//     const tests = assessment.tests;
+
+//     tests.forEach(test => {
+//       results.rows.forEach(result => {
+//         if (result.assessment_id !== assessment.id) return; // Skip unrelated assessments
+
+//         if (!resultsByCandidate[result.candidate_id]) {
+//           resultsByCandidate[result.candidate_id] = {
+//             id: result.candidate_id,
+//             candidate_name: candidatesMap.get(result.candidate_id).name,
+//             candidate_email: candidatesMap.get(result.candidate_id).email,
+//             companies: new Set(),
+//             assessments: [],
+//           };
+//         }
+
+//         let candidateAssessments = resultsByCandidate[result.candidate_id].assessments;
+//         let assessmentIndex = candidateAssessments.findIndex(a => a.name === assessmentName);
+//         if (assessmentIndex === -1) {
+//           assessmentIndex = candidateAssessments.length;
+//           candidateAssessments.push({
+//             name: assessmentName,
+//             tests: [],
+//             started_at: result.started_at,
+//             previous_attempts: []
+//           });
+//         }
+
+//         let testIndex = candidateAssessments[assessmentIndex].tests.findIndex(t => t.name === test.test_name);
+//         if (testIndex === -1) {
+//           candidateAssessments[assessmentIndex].tests.push({
+//             name: test.test_name,
+//             total_questions: test.total_questions,
+//             attempted_questions: 0,
+//             status: 'Not attempted',
+//           });
+//         }
+//       });
+//     });
+//   });
+
+//   const resultsWithNames = Object.values(resultsByCandidate);
+
+//   // Track the getResultsByUser event in Segment
+//   analytics.track({
+//     userId: String(req.user?.id),
+//     event: 'Results viewed By User',
+//     properties: {
+//       count: results.rows.length,
+//       fetched_at: new Date().toISOString(),
+//     }
+//   });
+
+//   res.status(200).json(resultsWithNames);
+// });
+
+const getResultsByUser = catchAsyncErrors(async (req, res) => {
   if (!req.user || !req.user.id) {
     console.error("User ID is missing in the request");
     return res.status(400).json({ error: "User ID is missing in the request" });
   }
 
-  const userId = req.user.id; // Assume userId is extracted from the token
+  const userId = req.user.id;
 
   await createResultsTable();
 
-  // Fetch assessments created by the user
   const assessmentsQuery = 'SELECT * FROM "assessments" WHERE created_by = $1';
   const assessmentsResult = await client.query(assessmentsQuery, [userId]);
 
@@ -309,7 +655,6 @@ const getResultsByUser = catchAsyncErrors(async (req, res) => {
   const assessments = assessmentsResult.rows;
   const assessmentIds = assessments.map(assessment => assessment.id);
 
-  // Fetch results for these assessments
   const resultsQuery = 'SELECT * FROM "results" WHERE assessment_id = ANY($1)';
   const results = await client.query(resultsQuery, [assessmentIds]);
 
@@ -317,16 +662,13 @@ const getResultsByUser = catchAsyncErrors(async (req, res) => {
     return res.status(200).json({ error: "No results found for these assessments" });
   }
 
-  // Fetch candidate names and emails for each result
   const candidateIds = results.rows.map(result => result.candidate_id);
   const candidateQuery = 'SELECT id, first_name, email FROM "candidates" WHERE id = ANY($1)';
   const candidateResult = await client.query(candidateQuery, [candidateIds]);
   const candidatesMap = new Map(candidateResult.rows.map(candidate => [candidate.id, { name: candidate.first_name, email: candidate.email }]));
 
-  // Fetch assessment names and tests
   const assessmentsMap = new Map(assessments.map(assessment => [assessment.id, assessment]));
 
-  // Group results by candidate id
   const resultsByCandidate = results.rows.reduce((acc, result) => {
     const { candidate_id, company_id, started_at, ...rest } = result;
     const candidate = acc[candidate_id] || {
@@ -337,43 +679,56 @@ const getResultsByUser = catchAsyncErrors(async (req, res) => {
       assessments: [],
     };
 
-    // Add company ID to the candidate's company list
     candidate.companies.add(company_id);
 
-    // Find or create assessment
     let assessmentIndex = candidate.assessments.findIndex(assessment => assessment.name === assessmentsMap.get(result.assessment_id).assessment_name);
     if (assessmentIndex === -1) {
       assessmentIndex = candidate.assessments.length;
       candidate.assessments.push({
         name: assessmentsMap.get(result.assessment_id).assessment_name,
         tests: [],
-        started_at: started_at
+        started_at: started_at,
       });
     }
 
-    // Find or create test
     const assessment = assessmentsMap.get(result.assessment_id);
     const testDetails = assessment.tests.find(test => test.test_id === result.test_id);
-    if (!testDetails) return acc; // Skip if no test details found
+    if (!testDetails) return acc;
 
     let testIndex = candidate.assessments[assessmentIndex].tests.findIndex(test => test.name === testDetails.test_name);
     if (testIndex === -1) {
-      testIndex = candidate.assessments[assessmentIndex].tests.length;
       candidate.assessments[assessmentIndex].tests.push({
         name: testDetails.test_name,
-        total_questions: testDetails.questions.length,
+        total_questions: testDetails.total_questions,
         attempted_questions: rest.questions ? rest.questions.length : 0,
         score: rest.score,
         status: rest.questions && rest.questions.length > 0 ?
-          (rest.questions.length === testDetails.questions.length ? 'Attempted' : `Attempted ${rest.questions.length} questions`) :
+          (rest.questions.length === testDetails.total_questions ? 'Attempted' : `Attempted ${rest.questions.length} questions`) :
           'Not attempted any questions from this test',
+        previous_attempts: []
       });
+    } else {
+      const currentTestDetails = candidate.assessments[assessmentIndex].tests[testIndex];
+
+      candidate.assessments[assessmentIndex].tests[testIndex] = {
+        ...currentTestDetails,
+        score: rest.score,
+        attempted_questions: rest.questions ? rest.questions.length : 0,
+        status: rest.questions && rest.questions.length > 0 ?
+          (rest.questions.length === testDetails.total_questions ? 'Attempted' : `Attempted ${rest.questions.length} questions`) :
+          'Not attempted any questions from this test',
+      };
+
+      if (currentTestDetails.score !== rest.score) {
+        candidate.assessments[assessmentIndex].tests[testIndex].previous_attempts.push({
+          score: currentTestDetails.score
+        });
+      }
     }
 
     return { ...acc, [candidate_id]: candidate };
   }, {});
 
-  // Calculate assessment percentage and score for each assessment
   Object.values(resultsByCandidate).forEach(candidate => {
     candidate.assessments.forEach(assessment => {
       let totalScore = 0;
@@ -387,18 +742,17 @@ const getResultsByUser = catchAsyncErrors(async (req, res) => {
       assessment.assessment_score = totalScore;
       assessment.assessment_percentage = calculatePercentage(totalScore, totalTests * 100);
     });
-    // Convert Set of companies to an array
+
     candidate.companies = Array.from(candidate.companies);
   });
 
-  // Filter out assessments without results
   assessments.forEach(assessment => {
     const assessmentName = assessment.assessment_name;
     const tests = assessment.tests;
 
     tests.forEach(test => {
       results.rows.forEach(result => {
-        if (result.assessment_id !== assessment.id) return; // Skip unrelated assessments
+        if (result.assessment_id !== assessment.id) return;
 
         if (!resultsByCandidate[result.candidate_id]) {
           resultsByCandidate[result.candidate_id] = {
@@ -425,9 +779,10 @@ const getResultsByUser = catchAsyncErrors(async (req, res) => {
         if (testIndex === -1) {
           candidateAssessments[assessmentIndex].tests.push({
             name: test.test_name,
-            total_questions: test.questions.length,
+            total_questions: test.total_questions,
             attempted_questions: 0,
             status: 'Not attempted',
+            previous_attempts: []
           });
         }
       });
@@ -436,14 +791,12 @@ const getResultsByUser = catchAsyncErrors(async (req, res) => {
 
   const resultsWithNames = Object.values(resultsByCandidate);
 
-  // Track the getResultsByUser event in Segment
   analytics.track({
     userId: String(req.user?.id),
     event: 'Results viewed By User',
     properties: {
       count: results.rows.length,
-      fetched_at: new Date().
-        toISOString(),
+      fetched_at: new Date().toISOString(),
     }
   });
 

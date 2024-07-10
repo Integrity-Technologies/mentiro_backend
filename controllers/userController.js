@@ -67,6 +67,25 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
+// Helper function to get company name by user ID
+async function getCompanyNameByUserId(userId) {
+  try {
+    const result = await client.query(
+      `SELECT name FROM companies WHERE created_by = $1 AND is_active = TRUE LIMIT 1`,
+      [userId]
+    );
+
+    if (result.rows.length > 0) {
+      return result.rows[0].name;
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error fetching company name:", error);
+    throw error;
+  }
+}
+
 // Signup new user
 const signup = [
   ...userValidationRules,
@@ -111,6 +130,9 @@ const signup = [
         return sendErrorResponse(res, 400, 'User ID is missing or invalid');
       }
 
+      // Fetch the company name
+      const companyName = await getCompanyNameByUserId(result.id);
+
       // Identify the user in Segment
       analytics.identify({
         userId: String(result.id), // Ensure userId is a string
@@ -134,7 +156,15 @@ const signup = [
         }
       });
 
-      sendToken(result, 201, res);
+      // Include the company name in the response
+      const tokenResponse = {
+        ...result,
+        company_name: companyName,
+      };
+
+      sendToken(tokenResponse, 201, res);
+
+      // sendToken(result, 201, res);
     } catch (error) {
       console.error("Error occurred:", error);
       res.status(500).json({ error: error.message });
@@ -248,6 +278,9 @@ const login = [
         return sendErrorResponse(res, 401, 'Invalid password');
       }
 
+      // Fetch the company name
+      const companyName = await getCompanyNameByUserId(user.id);
+
       // Identify the user in Segment
       analytics.identify({
         userId: String(user.id),
@@ -269,8 +302,17 @@ const login = [
         }
       });
 
+      // Include the company name in the response
+      const tokenResponse = {
+        ...user,
+        company_name: companyName,
+      };
+
       // Login successful, generate and send token
-      sendToken(user, 200, res);
+      sendToken(tokenResponse, 200, res);
+
+      // Login successful, generate and send token
+      // sendToken(user, 200, res);
     } catch (error) {
       console.error("Error occurred during login:", error);
       res.status(500).json({ error: error.message });
@@ -362,22 +404,20 @@ const forgotPassword = [
       await client.query('UPDATE "users" SET reset_token = $1, reset_token_expiry = $2 WHERE id = $3', [resetToken, resetTokenExpiry, user.id]);
 
       // Send the reset password email
-      const resetUrl = `${req.protocol}://${req.get("host")}/password/reset/${resetPasswordToken}`;
+      // const resetUrl = `${req.protocol}://${req.get("host")}/password/reset/${resetPasswordToken}`;
+      const protocol = process.env.PROTOCOL;
+      const host = process.env.HOST;
+
+      const resetUrl = `${protocol}://${host}/password/reset/${resetPasswordToken}`;
       const message = `Your password reset token is as follows: \n\n${resetUrl}\n\nIf you have not requested this email, then ignore it.`;
 
       try {
-        // await sendEmail({
-        //   email: user.email,
-        //   subject: 'Password Recovery',
-        //   message
-        // });
         await sendEmail({
           email: user.email,
-    templateId: 36437115,
-    templateModel: {
-      resetUrl: resetUrl,
-      // Add other template model variables if needed
-    }
+          templateId: 36437115,
+          templateModel: {
+            resetUrl: resetUrl,
+          }
         })
 
         analytics.track({

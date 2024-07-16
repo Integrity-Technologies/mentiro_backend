@@ -15,6 +15,7 @@ const jobTitleRoutes = require('./routes/jobTitle');
 const companySizeRoutes = require('./routes/companySize');
 const errorMiddleware = require('./middleware/error');
 const {initializeTables} = require("./utils/initializeTables");
+const posthog = require('./postHog/postHog');
 
 const cors = require("cors");
 const dotenv = require("dotenv");

@@ -9,11 +9,11 @@ const generateUniqueLink = async () => {
   let link;
   let shareableLink;
   let checkLinkResult;
-  const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+  const baseUrl = process.env.BASE_URL_DEV || 'http://localhost:3000';
   // console.log(process.env.BASE_URL + " from assessment controller");
   do {
     link = Math.random().toString(36).substring(2, 15);
-    shareableLink = `${baseUrl}/api/assessment?${link}`; // Unique link directly appended
+    shareableLink = `${baseUrl}/assessment?${link}`; // Unique link directly appended
     const checkLinkQuery = `
       SELECT * FROM assessments WHERE uniquelink = $1
     `;
@@ -867,61 +867,161 @@ const getAllUserAssessments = catchAsyncErrors(async (req, res, next) => {
 });
 
 // Update Assessment
+// const updateAssessment = catchAsyncErrors(async (req, res, next) => {
+//   try {
+//     const { id } = req.params;
+//     const { assessment_name, company_name, tests } = req.body;
+
+//     // Check if req.user and req.user.id are defined
+//     if (!req.user || !req.user.id) {
+//       console.error("User ID is missing in the request");
+//       return res.status(400).json({ error: "User ID is missing in the request" });
+//     }
+
+//     // Validate request data
+//     if (!assessment_name || !company_name || !tests) {
+//       return res.status(400).json({ error: 'Missing required fields' });
+//     }
+
+//     // Find company ID by name
+//     const companyId = await findCompanyIdByName(company_name);
+
+//     // Find test IDs by names
+//     const testIds = await findTestIdsByName(tests);
+
+//     // Update assessment data in the database
+//     const query = `
+//           UPDATE assessments 
+//           SET assessment_name = $1, company_id = $2, tests = $3
+//           WHERE id = $4`;
+//     const values = [assessment_name, companyId, testIds, id];
+//     const updateAssessment = await client.query(query, values);
+
+//     // Identify the user who updated the assessment in Segment
+//     analytics.identify({
+//       userId: String(req.user?.id || 'anonymous'),
+//       traits: {
+//         name: req.user.name,
+//         email: req.user.email,
+//       }
+//     });
+
+//     analytics.identify({
+//       userId: String(req.user?.id || 'anonymous'),
+//       traits: {
+//         name: updateAssessment.assessment_name,
+//       }
+//     });
+
+//     // Track the assessment update event in Segment
+//     analytics.track({
+//       userId: String(req.user?.id || 'anonymous'),
+//       event: 'Assessment Updated',
+//       properties: {
+//         assessmentId: id,
+//         assessment_name,
+//         company_id: companyId,
+//         tests: testIds,
+//         updated_at: new Date().toISOString(),
+//       }
+//     });
+
+//     res.status(200).json({ message: 'Assessment updated successfully' });
+//   } catch (error) {
+//     console.error("Error updating Assessment:", error.message);
+//     res.status(500).json({ error: "Error updating Assessment", error: error.message });
+//   }
+// });
+
 const updateAssessment = catchAsyncErrors(async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { assessment_name, company_name, tests } = req.body;
+    const { assessment_name, company_name, job_role, work_arrangement, job_location, tests } = req.body;
 
-    // Check if req.user and req.user.id are defined
+    // Validate user ID
     if (!req.user || !req.user.id) {
       console.error("User ID is missing in the request");
       return res.status(400).json({ error: "User ID is missing in the request" });
     }
 
     // Validate request data
-    if (!assessment_name || !company_name || !tests) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    if (!assessment_name || !company_name || !job_role || !work_arrangement || !job_location || !Array.isArray(tests) || tests.length === 0) {
+      return res.status(400).json({ error: 'Missing or invalid required fields' });
     }
 
-    // Find company ID by name
+    // Check if the user already has an assessment with the same name (excluding the current assessment)
+    const existingAssessment = await client.query(
+      'SELECT id FROM assessments WHERE assessment_name = $1 AND created_by = $2 AND id != $3',
+      [assessment_name, req.user.id, id]
+    );
+    if (existingAssessment.rows.length > 0) {
+      return res.status(409).json({ error: "You already have an assessment with this name" });
+    }
+
+    // Fetch related IDs
     const companyId = await findCompanyIdByName(company_name);
+    const jobRoleId = await findJobRole(job_role);
+    const workArrangementId = await findWorkArrangementIdByName(work_arrangement);
+    const jobLocationId = await findJobLocationIdByName(job_location);
 
-    // Find test IDs by names
-    const testIds = await findTestIdsByName(tests);
+    // Validate and fetch test details
+    let processedTests;
+    try {
+      processedTests = await findTestIdsByName(tests);
+    } catch (validationError) {
+      return res.status(400).json({ error: validationError.message });
+    }
 
-    // Update assessment data in the database
+    // Calculate total_time and total_questions for each test
+    const testsWithDetails = await Promise.all(tests.map(async (test) => {
+      const totalQuestions = Object.values(test.test_difficulty).reduce((sum, count) => sum + count, 0);
+      const totalTime = totalQuestions * QUESTION_TIME_PER_MINUTE;
+      
+      // Fetch test ID from the database
+      const testResult = await client.query('SELECT id, categories FROM "tests" WHERE test_name = $1', [test.test_name]);
+      if (testResult.rows.length === 0) {
+        throw new Error(`Test '${test.test_name}' not found`);
+      }
+      
+      const testId = testResult.rows[0].id;
+      
+      return {
+        ...test,
+        total_time: totalTime,
+        total_questions: totalQuestions,
+        test_id: testId
+      };
+    }));
+
+    // Update assessment in the database
     const query = `
-          UPDATE assessments 
-          SET assessment_name = $1, company_id = $2, tests = $3
-          WHERE id = $4`;
-    const values = [assessment_name, companyId, testIds, id];
-    const updateAssessment = await client.query(query, values);
+      UPDATE assessments 
+      SET assessment_name = $1, company_id = $2, job_role_id = $3, work_arrangement_id = $4, job_location_id = $5, tests = $6::jsonb[]
+      WHERE id = $7 AND created_by = $8
+    `;
+    const values = [assessment_name, companyId, jobRoleId, workArrangementId, jobLocationId, testsWithDetails, id, req.user.id];
+    await client.query(query, values);
 
-    // Identify the user who updated the assessment in Segment
+    // Track the assessment update event in analytics
     analytics.identify({
-      userId: String(req.user?.id || 'anonymous'),
+      userId: String(req.user.id),
       traits: {
         name: req.user.name,
         email: req.user.email,
       }
     });
 
-    analytics.identify({
-      userId: String(req.user?.id || 'anonymous'),
-      traits: {
-        name: updateAssessment.assessment_name,
-      }
-    });
-
-    // Track the assessment update event in Segment
     analytics.track({
-      userId: String(req.user?.id || 'anonymous'),
+      userId: String(req.user.id),
       event: 'Assessment Updated',
       properties: {
         assessmentId: id,
         assessment_name,
         company_id: companyId,
-        tests: testIds,
+        job_role_id: jobRoleId,
+        work_arrangement_id: workArrangementId,
+        job_location_id: jobLocationId,
+        tests: testsWithDetails,
         updated_at: new Date().toISOString(),
       }
     });
@@ -932,6 +1032,10 @@ const updateAssessment = catchAsyncErrors(async (req, res, next) => {
     res.status(500).json({ error: "Error updating Assessment", error: error.message });
   }
 });
+
+
+
+
 
 // Delete Assessment
 const deleteAssessment = catchAsyncErrors(async (req, res, next) => {

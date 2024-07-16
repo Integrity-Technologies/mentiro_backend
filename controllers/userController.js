@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const { client } = require("../db/index.js");
 const { sendToken } = require("../utils/jwtToken");
 const { sendEmail } = require("../utils/sendEmail.js");
+const posthog = require('../postHog/postHog.js');
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const { sendErrorResponse } = require("../utils/res_error");
 const { body, validationResult } = require('express-validator');
@@ -130,8 +131,15 @@ const signup = [
         return sendErrorResponse(res, 400, 'User ID is missing or invalid');
       }
 
-      // Fetch the company name
-      const companyName = await getCompanyNameByUserId(result.id);
+      posthog.capture({
+        distinctId: result.id,
+        event: 'User Signed Up',
+        properties: {
+          email: user.email,
+          name: user.name,
+          signup_method: 'Email', 
+        },
+      });
 
       // Identify the user in Segment
       analytics.identify({
@@ -156,15 +164,7 @@ const signup = [
         }
       });
 
-      // Include the company name in the response
-      const tokenResponse = {
-        ...result,
-        company_name: companyName,
-      };
-
-      sendToken(tokenResponse, 201, res);
-
-      // sendToken(result, 201, res);
+      sendToken(result, 201, res);
     } catch (error) {
       console.error("Error occurred:", error);
       res.status(500).json({ error: error.message });
@@ -403,14 +403,10 @@ const forgotPassword = [
       // Update user's reset token and expiry in the database
       await client.query('UPDATE "users" SET reset_token = $1, reset_token_expiry = $2 WHERE id = $3', [resetToken, resetTokenExpiry, user.id]);
 
-      // Send the reset password email
-      // const resetUrl = `${req.protocol}://${req.get("host")}/password/reset/${resetPasswordToken}`;
-      const protocol = process.env.PROTOCOL;
-      const host = process.env.HOST;
-
-      const resetUrl = `${protocol}://${host}/password/reset/${resetPasswordToken}`;
-      const message = `Your password reset token is as follows: \n\n${resetUrl}\n\nIf you have not requested this email, then ignore it.`;
-
+      // const resetUrl = `${protocol}://${host}/password/reset/${resetPasswordToken}`;
+      const resetUrl = `${process.env.BASE_URL_DEV}/password/reset/${resetToken}`;
+      // const message = `Your password reset token is as follows: \n\n${resetUrl}\n\nIf you have not requested this email, then ignore it.`;
+      
       try {
         await sendEmail({
           email: user.email,
@@ -447,7 +443,12 @@ const forgotPassword = [
 
 // Reset password
 const resetPassword = [
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
+  body('newPassword')
+  .isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
+  .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')
+  .matches(/[a-z]/).withMessage('Password must contain at least one lowercase letter')
+  .matches(/[0-9]/).withMessage('Password must contain at least one number')
+  .matches(/[\W_]/).withMessage('Password must contain at least one special character'),
   handleValidationErrors,
   catchAsyncErrors(async (req, res, next) => {
     const { newPassword, confirmPassword, token } = req.body;
@@ -470,7 +471,7 @@ const resetPassword = [
     await client.query('UPDATE "users" SET password = $1, reset_token = NULL, reset_token_expiry = NULL WHERE id = $2', [hashedPassword, user.rows[0].id]);
 
     analytics.track({
-      userId: String(req.user.id || 'anonymous'),
+      userId: String(user.id || 'anonymous'),
       event: 'Password Reset successfully',
       properties: {
         passwordReset: new Date().toISOString(),

@@ -131,13 +131,14 @@ const createCandidate = [
 
       // Generate the link with the unique identifier from the request body
       const uniqueIdentifier = candidateData.uniquelink; // Ensure this field is in the request body
-      const link = `${req.protocol}://${req.get("host")}/assessment?${uniqueIdentifier}/tests`;
+      // const link = `${req.protocol}://${req.get("host")}/assessment?${uniqueIdentifier}/tests`;
+      const link = `${process.env.BASE_URL_DEV}/assessment/tests?${uniqueIdentifier}`
 
       // Send the email with the link
       try {
         await sendEmail({
           email: candidate.email,
-          templateId: 36437115, // Use the appropriate template ID
+          templateId: 36579511,
           templateModel: {
             assessmentLink: link,
           }
@@ -161,14 +162,9 @@ const createCandidate = [
           success: true,
           emailMessage,
           creationMessage,
-          link
+          candidate
         });
 
-        // res.status(200).json({
-        //   success: true,
-        //   message: `Email sent to ${candidate.email} successfully`,
-        //   link
-        // });
       } catch (error) {
         console.error("Error occurred while sending email:", error);
         return res.status(500).json({ error: error.message });

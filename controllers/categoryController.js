@@ -80,7 +80,7 @@ const createCategory = catchAsyncErrors(async (req, res) => {
   const newCategory = await saveCategory(categoryData);
 
   analytics.identify({
-    userId: (userId || 'anonymous'),
+    userId: String(userId || 'anonymous'),
     traits: {
       name: newCategory.category_name,
       createdBy: newCategory.created_by,
@@ -89,7 +89,7 @@ const createCategory = catchAsyncErrors(async (req, res) => {
   });
 
   analytics.track({
-    userId: (userId || 'anonymous'),
+    userId: String(userId || 'anonymous'),
     event: 'Category Created',
     properties: {
       categoryName: newCategory.category_name,

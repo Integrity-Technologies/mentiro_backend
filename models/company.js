@@ -75,4 +75,4 @@ const saveCompany = async (companyData) => {
 };
 
 
-module.exports = { createCompanyTable, saveCompany };
+module.exports = { createCompaniesTableQuery,createCompanyTable, saveCompany };

@@ -47,4 +47,4 @@ const saveWorkArrangement = async (workArrangementName) => {
   };
 
 
-module.exports = { createWorkArrangementsTable, saveWorkArrangement };
+module.exports = {createWorkArrangementsTableQuery, createWorkArrangementsTable, saveWorkArrangement };

@@ -131,15 +131,15 @@ const signup = [
         return sendErrorResponse(res, 400, 'User ID is missing or invalid');
       }
 
-      posthog.capture({
-        distinctId: result.id,
-        event: 'User Signed Up',
-        properties: {
-          email: user.email,
-          name: user.name,
-          signup_method: 'Email', 
-        },
-      });
+      // posthog.capture({
+      //   distinctId: result.id,
+      //   event: 'User Signed Up',
+      //   properties: {
+      //     email: user.email,
+      //     name: user.name,
+      //     signup_method: 'Email', 
+      //   },
+      // });
 
       // Identify the user in Segment
       analytics.identify({

@@ -46,4 +46,4 @@ const saveJobLocation = async (jobLocationName) => {
 };
 
 
-module.exports = { createJobLocationsTable, saveJobLocation };
+module.exports = { createJobLocationsTableQuery,createJobLocationsTable, saveJobLocation };

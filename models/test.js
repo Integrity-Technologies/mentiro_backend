@@ -66,4 +66,4 @@ const saveTest = async (testData) => {
 };
 
 
-module.exports = { createTestsTable, saveTest };
+module.exports = { createTestsTableQuery,createTestsTable, saveTest };

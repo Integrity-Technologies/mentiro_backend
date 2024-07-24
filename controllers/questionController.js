@@ -39,13 +39,16 @@ const validateQuestionInput = [
       }
       return true;
     }),
-    body('options.*.is_correct').isBoolean().withMessage('is_correct must be a boolean')
+    body('options.*.is_correct').isBoolean().withMessage('is_correct must be a boolean'),
   // .custom((options) => {
   //   if (options.some(option => typeof option.option_text !== 'string' || typeof option.is_correct !== 'boolean')) {
   //     throw new Error('Each option must have a string "option_text" and a boolean "is_correct"');
   //   }
   //   return true;
   // }),
+  body('question_time')
+    .notEmpty().withMessage('Question time is required')
+    .isInt({ min: 1 }).withMessage('Question time must be a positive integer')
 ];
 
 const handleValidationErrors = (req, res, next) => {
@@ -83,7 +86,7 @@ const createQuestionAndAnswer = [
     await createQuestionTable();
     await createAnswersTable();
 
-    const { question_text, difficulty_level, category_names, options, question_type } = req.body;
+    const { question_text, difficulty_level, category_names, options, question_type, question_time } = req.body;
 
     // Check if req.user and req.user.id are defined
     if (!req.user || !req.user.id) {
@@ -109,6 +112,7 @@ const createQuestionAndAnswer = [
       created_by: req.user.id,
       is_active: true,
       is_custom: false,
+      question_time
     };
     const newQuestion = await saveQuestion(questionData);
     const questionId = newQuestion.id;

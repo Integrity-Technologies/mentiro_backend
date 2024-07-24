@@ -74,4 +74,4 @@ const saveCandidate = async (candidateData) => {
 };
 
 
-module.exports = { createCandidateTable, saveCandidate };
+module.exports = { createCandidatesTableQuery,createCandidateTable, saveCandidate };

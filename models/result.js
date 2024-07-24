@@ -121,4 +121,4 @@ const getResultById = async (resultId) => {
 };
 
 
-module.exports = { createResultsTable, saveResult, getResultById, updateResult };
+module.exports = {createResultsTableQuery, createResultsTable, saveResult, getResultById, updateResult };

@@ -139,7 +139,7 @@ const signup = [
       //     name: user.name,
       //     signup_method: 'Email', 
       //   },
-      // });
+      // }); jjj
 
       // Identify the user in Segment
       analytics.identify({

@@ -56,4 +56,4 @@ const saveCategory = async (categoryData) => {
 };
 
 
-module.exports = { createCategoryTable, saveCategory };
+module.exports = { createCategoryTableQuery,createCategoryTable, saveCategory };

@@ -164,4 +164,4 @@ const saveAssessment = async (assessmentData) => {
 };
 
 
-module.exports = { createAssessmentsTable, saveAssessment };
+module.exports = { createAssessmentsTableQuery,createAssessmentsTable, saveAssessment };

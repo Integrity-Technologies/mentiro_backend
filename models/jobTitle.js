@@ -47,4 +47,4 @@ const saveJobTitle = async (title) => {
 };
 
 
-module.exports = { createJobTitlesTable, saveJobTitle };
+module.exports = { createJobTitlesTableQuery,createJobTitlesTable, saveJobTitle };

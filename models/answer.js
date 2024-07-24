@@ -84,4 +84,4 @@ const getAnswerByQuestionId = async (question_id) => {
   }
 };
 
-module.exports = { createAnswersTable, saveAnswer, getAnswerByQuestionId };
+module.exports = { createAnswersTableQuery,createAnswersTable, saveAnswer, getAnswerByQuestionId };

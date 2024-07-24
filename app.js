@@ -13,6 +13,7 @@ const jobLocationRoutes = require('./routes/jobLocation');
 const jobRoleRoutes = require('./routes/jobRole');
 const jobTitleRoutes = require('./routes/jobTitle');
 const companySizeRoutes = require('./routes/companySize');
+const aliveRoutes = require("./routes/aliveRoutes")
 const errorMiddleware = require('./middleware/error');
 const {initializeTables} = require("./utils/initializeTables");
 const posthog = require('./postHog/postHog');
@@ -52,6 +53,7 @@ app.use("/api/jobRole",jobRoleRoutes);
 app.use("/api/jobLocation",jobLocationRoutes);
 app.use("/api/jobTitle",jobTitleRoutes);
 app.use("/api/companySize",companySizeRoutes);
+app.use("/api",aliveRoutes);
 // app.use(errorMiddleware); // Error handling middleware 
 
 // const server = app.listen(process.env.PORT, () => {

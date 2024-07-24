@@ -109,4 +109,4 @@ const saveUser = async (userData) => {
 };
 
 
-module.exports = { createUserTable, saveUser };
+module.exports = { createUsersTableQuery,createUserTable, saveUser };

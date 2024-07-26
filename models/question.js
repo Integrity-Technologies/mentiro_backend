@@ -36,8 +36,7 @@ const saveQuestion = async (questionData) => {
     categories,
     created_by,
     is_active,
-    is_custom,
-    question_time
+    is_custom
   } = questionData;
   try {
     
@@ -49,10 +48,9 @@ const saveQuestion = async (questionData) => {
         categories,
         created_by,
         is_active,
-        is_custom,
-        question_time
+        is_custom
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *;
     `;
     const values = [
@@ -62,8 +60,7 @@ const saveQuestion = async (questionData) => {
       categories,
       created_by,
       is_active ?? true,
-      is_custom ?? false,
-      question_time
+      is_custom ?? false
     ];
     const result = await client.query(insertQuery, values);
     console.log("Question data saved successfully");

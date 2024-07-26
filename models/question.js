@@ -14,8 +14,7 @@ CREATE TABLE IF NOT EXISTS questions (
     is_custom BOOLEAN DEFAULT FALSE,
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (created_by) REFERENCES "users"(id),
-    question_time INTEGER DEFAULT 1
+    FOREIGN KEY (created_by) REFERENCES "users"(id)
 );
 `;
 

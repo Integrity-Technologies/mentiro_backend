@@ -12,7 +12,6 @@ const jwt = require('jsonwebtoken');
 // };
 
 const sendToken = (result, statusCode, res) => {
-  // const token = await generateToken(result);
   const token = jwt.sign({id:result.id}, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE,
   });
@@ -20,7 +19,7 @@ const sendToken = (result, statusCode, res) => {
   // Options for cookie
   const options = {
     expires: new Date(
-        Date.now() + process.env.COOKIE_EXPIRE * 24 * 60 * 60 * 1000
+        Date.now() + process.env.COOKIE_EXPIRE * 24 * 60 * 60 * 1000 // 1 day in milliseconds
     ),
     httpOnly: true,
   };
@@ -32,5 +31,4 @@ const sendToken = (result, statusCode, res) => {
   });
 };
 
-// generateToken,
 module.exports = {  sendToken };

@@ -46,9 +46,6 @@ const validateQuestionInput = [
   //   }
   //   return true;
   // }),
-  body('question_time')
-    .notEmpty().withMessage('Question time is required')
-    .isInt({ min: 1 }).withMessage('Question time must be a positive integer')
 ];
 
 const handleValidationErrors = (req, res, next) => {
@@ -86,7 +83,7 @@ const createQuestionAndAnswer = [
     await createQuestionTable();
     await createAnswersTable();
 
-    const { question_text, difficulty_level, category_names, options, question_type, question_time } = req.body;
+    const { question_text, difficulty_level, category_names, options, question_type} = req.body;
 
     // Check if req.user and req.user.id are defined
     if (!req.user || !req.user.id) {
@@ -111,8 +108,7 @@ const createQuestionAndAnswer = [
       categories: categoryIds,
       created_by: req.user.id,
       is_active: true,
-      is_custom: false,
-      question_time
+      is_custom: false
     };
     const newQuestion = await saveQuestion(questionData);
     const questionId = newQuestion.id;

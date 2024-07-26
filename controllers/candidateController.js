@@ -143,7 +143,7 @@ const createCandidate = [
             assessmentLink: link,
           }
         });
-
+        
         // Track the email sent event in Segment
         analytics.track({
           userId: String(candidate.id),

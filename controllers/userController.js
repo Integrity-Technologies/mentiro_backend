@@ -15,6 +15,37 @@ const crypto = require("crypto");
 
 // Common validation rules for user
 // Validation rules
+
+// Initial Signup Validation Rules
+const initialSignupValidationRules = [
+  body('email')
+    .isEmail().withMessage('Invalid email address')
+    .normalizeEmail()
+    .isLength({ min: 1 }).withMessage('Email is required'),
+];
+
+// Complete Registration Validation Rules
+const completeRegistrationValidationRules = [
+  body('userID')
+    .isInt({ gt: 0 }).withMessage('Invalid User ID'), // Ensure userID is a positive integer
+  body('first_name')
+    .isString().withMessage('First name must be a string')
+    .isLength({ min: 1 }).withMessage('First name is required'),
+  body('last_name')
+    .isString().withMessage('Last name must be a string')
+    .isLength({ min: 1 }).withMessage('Last name is required'),
+  body('password')
+    .isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
+    .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')
+    .matches(/[a-z]/).withMessage('Password must contain at least one lowercase letter')
+    .matches(/[0-9]/).withMessage('Password must contain at least one number')
+    .matches(/[\W_]/).withMessage('Password must contain at least one special character'),
+    body('phone')
+    .optional()
+    .isNumeric().withMessage('Phone must be numeric')
+    .isLength({ min: 10, max: 15 }).withMessage('Phone must be between 10 and 15 characters')
+];
+ // user validation rule (For add user API)
 const userValidationRules = [
   body('first_name')
     .isString().withMessage('First name must be a string')
@@ -88,48 +119,113 @@ async function getCompanyNameByUserId(userId) {
 }
 
 // Signup new user
-const signup = [
-  ...userValidationRules,
+// const signup = [
+//   ...userValidationRules,
+//   handleValidationErrors,
+//   catchAsyncErrors(async (req, res, next) => {
+//     const { first_name, last_name, email, is_email_verified, phone, is_phone_verified, password, permissions, is_active, is_employee } = req.body;
+
+//     await createUserTable();
+
+//     // Check if a user with the same email already exists
+//     const existingUser = await client.query('SELECT * FROM "users" WHERE email = $1', [email]);
+//     if (existingUser.rows.length > 0) {
+//       // return res.status(400).json({ error: "User with this email already exists" });
+//       return sendErrorResponse(res, 409, 'User with this email already exists');
+//     }
+
+//     // check if the phone no already exists in database
+//     const existingPhoneNo = await client.query(`SELECT * FROM "users" WHERE phone = $1`, [phone]);
+//     if (existingPhoneNo.rows.length > 0) {
+//       return sendErrorResponse(res, 409, 'User with this phone number already exists');
+//     }
+
+//     const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+//     try {
+//       // Save the user data
+//       const result = await saveUser({
+//         first_name,
+//         last_name,
+//         email,
+//         is_email_verified,
+//         phone,
+//         is_phone_verified,
+//         password: hashedPassword,
+//         permissions,
+//         is_active,
+//         is_employee,
+//       });
+
+//       if (!result.id) {
+//         // throw new Error("User ID is missing or invalid");
+//         return sendErrorResponse(res, 400, 'User ID is missing or invalid');
+//       }
+
+//       // posthog.capture({
+//       //   distinctId: result.id,
+//       //   event: 'User Signed Up',
+//       //   properties: {
+//       //     email: user.email,
+//       //     name: user.name,
+//       //     signup_method: 'Email', 
+//       //   },
+//       // }); 
+
+//       // Identify the user in Segment
+//       analytics.identify({
+//         userId: String(result.id), // Ensure userId is a string
+//         traits: {
+//           email: result.email,
+//           firstName: result.first_name,
+//           lastName: result.last_name,
+//         }
+//       });
+
+//       // Track the signup event in Segment
+//       analytics.track({
+//         userId: String(result.id), // Ensure userId is a string
+//         event: 'User Signed Up',
+//         properties: {
+//           email: result.email,
+//           firstName: result.first_name,
+//           lastName: result.last_name,
+//           signupMethod: 'Website',
+//           createdAt: new Date().toISOString(),
+//         }
+//       });
+
+//       sendToken(result, 201, res);
+//     } catch (error) {
+//       console.error("Error occurred:", error);
+//       res.status(500).json({ error: error.message });
+//     }
+//   })
+// ];
+
+const initialSignup = [ 
+  ...initialSignupValidationRules,
   handleValidationErrors,
   catchAsyncErrors(async (req, res, next) => {
-    const { first_name, last_name, email, is_email_verified, phone, is_phone_verified, password, permissions, is_active, is_employee } = req.body;
+  const { email } = req.body;
 
-    await createUserTable();
+  await createUserTable();
 
-    // Check if a user with the same email already exists
+     // Check if a user with the same email already exists
     const existingUser = await client.query('SELECT * FROM "users" WHERE email = $1', [email]);
     if (existingUser.rows.length > 0) {
-      // return res.status(400).json({ error: "User with this email already exists" });
       return sendErrorResponse(res, 409, 'User with this email already exists');
     }
 
-    // check if the phone no already exists in database
-    const existingPhoneNo = await client.query(`SELECT * FROM "users" WHERE phone = $1`, [phone]);
-    if (existingPhoneNo.rows.length > 0) {
-      return sendErrorResponse(res, 409, 'User with this phone number already exists');
-    }
+  try{
+  const newUser = await saveUser({
+    email,
+    status: 'PENDING',
+  });
 
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    try {
-      // Save the user data
-      const result = await saveUser({
-        first_name,
-        last_name,
-        email,
-        is_email_verified,
-        phone,
-        is_phone_verified,
-        password: hashedPassword,
-        permissions,
-        is_active,
-        is_employee,
-      });
-
-      if (!result.id) {
-        // throw new Error("User ID is missing or invalid");
-        return sendErrorResponse(res, 400, 'User ID is missing or invalid');
-      }
+  if (!newUser.id) {
+    return sendErrorResponse(res, 400, 'Failed to create user');
+  }
 
       // posthog.capture({
       //   distinctId: result.id,
@@ -143,34 +239,152 @@ const signup = [
 
       // Identify the user in Segment
       analytics.identify({
-        userId: String(result.id), // Ensure userId is a string
+        userId: String(newUser.id), 
         traits: {
-          email: result.email,
-          firstName: result.first_name,
-          lastName: result.last_name,
+          email: newUser.email,
         }
       });
 
       // Track the signup event in Segment
       analytics.track({
-        userId: String(result.id), // Ensure userId is a string
-        event: 'User Signed Up',
+        userId: String(newUser.id), // Ensure userId is a string
+        event: 'User initially Signed Up',
         properties: {
-          email: result.email,
-          firstName: result.first_name,
-          lastName: result.last_name,
+          email: newUser.email,
           signupMethod: 'Website',
           createdAt: new Date().toISOString(),
         }
       });
 
-      sendToken(result, 201, res);
+  res.status(201).json({
+    success: true,
+    message: 'User created with email only',
+    userId: newUser.id,
+  });
+  }
+  catch (error) {
+          console.error("Error occurred:", error);
+          res.status(500).json({ error: error.message });
+        }
+})]
+
+
+// Complete registration
+// const completeRegistration = [ 
+//   ...completeRegistrationValidationRules,
+//   handleValidationErrors,
+//   catchAsyncErrors(async (req, res, next) => {
+//   const { first_name, last_name, password, phone } = req.body;
+//   const userId = req.body.userID; 
+//   console.log('User ID:', userId);
+
+//   // Check if the user exists
+//   const userQuery = await client.query('SELECT * FROM "users" WHERE id = $1', [userId]);
+
+//   if (userQuery.rows.length === 0) {
+//     return sendErrorResponse(res, 404, 'User not found');
+//   }
+
+//   const user = userQuery.rows[0];
+
+//   // Check if the user registration is already completed
+//   if (user.status !== 'PENDING') {
+//     return sendErrorResponse(res, 400, 'User has already completed registration');
+//   }
+
+//        // check if the phone no already exists in database
+//     const existingPhoneNo = await client.query(`SELECT * FROM "users" WHERE phone = $1`, [phone]);
+//     if (existingPhoneNo.rows.length > 0) {
+//       return sendErrorResponse(res, 409, 'User with this phone number already exists');
+//     }
+
+//   const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+//   try{
+//   const updatedUser = await client.query(
+//     `UPDATE "users" SET first_name = $1, last_name = $2, password = $3, phone = $4, status = $5, updated_at = CURRENT_TIMESTAMP WHERE id = $6 RETURNING *`,
+//     [first_name, last_name, hashedPassword, phone, 'COMPLETED', userId]
+//   );
+
+//   if (updatedUser.rows.length === 0) {
+//     return sendErrorResponse(res, 400, 'Failed to update user');
+//   }
+
+//   sendToken(updatedUser.rows[0], 200, res); 
+// }
+//   catch (error) {
+//     console.error("Error occurred:", error);
+//     res.status(500).json({ error: error.message });
+//   }
+// })]
+const completeRegistration = [ 
+  ...completeRegistrationValidationRules,
+  handleValidationErrors,
+  catchAsyncErrors(async (req, res, next) => {
+    const { first_name, last_name, password, phone } = req.body;
+    const userId = req.body.userID; 
+    console.log('User ID:', userId);
+
+    // Check if the user exists
+    const userQuery = await client.query('SELECT * FROM "users" WHERE id = $1', [userId]);
+
+    if (userQuery.rows.length === 0) {
+      return sendErrorResponse(res, 404, 'User not found');
+    }
+
+    const user = userQuery.rows[0];
+
+    // Check if the user registration is already completed
+    if (user.status !== 'PENDING') {
+      return sendErrorResponse(res, 400, 'User has already completed registration');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    let query;
+    let values;
+
+    if (phone) {
+      // Check if the phone number already exists in the database
+      const existingPhoneNo = await client.query(`SELECT * FROM "users" WHERE phone = $1`, [phone]);
+      if (existingPhoneNo.rows.length > 0) {
+        return sendErrorResponse(res, 409, 'User with this phone number already exists');
+      }
+
+      // Update query with phone
+      query = `
+        UPDATE "users"
+        SET first_name = $1, last_name = $2, password = $3, phone = $4, status = $5, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $6
+        RETURNING *
+      `;
+      values = [first_name, last_name, hashedPassword, phone, 'COMPLETED', userId];
+    } else {
+      // Update query without phone
+      query = `
+        UPDATE "users"
+        SET first_name = $1, last_name = $2, password = $3, status = $4, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $5
+        RETURNING *
+      `;
+      values = [first_name, last_name, hashedPassword, 'COMPLETED', userId];
+    }
+
+    try {
+      const updatedUser = await client.query(query, values);
+
+      if (updatedUser.rows.length === 0) {
+        return sendErrorResponse(res, 400, 'Failed to update user');
+      }
+
+      sendToken(updatedUser.rows[0], 200, res); 
     } catch (error) {
       console.error("Error occurred:", error);
       res.status(500).json({ error: error.message });
     }
   })
 ];
+
 
 // Add user (Admin functionality, similar to signup)
 const addUser = [
@@ -377,6 +591,80 @@ const getAllUsers = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
+// get user with status "PENDING"
+const getPendingUsers = catchAsyncErrors(async (req, res, next) => {
+  try {
+    // Fetch all users with status 'PENDING' from the database
+    const pendingUsers = await client.query('SELECT * FROM "users" WHERE status = $1', ['PENDING']);
+     
+    // Check if any users were found
+    if (pendingUsers.rows.length === 0) {
+      return res.status(404).json({ message: "No users with PENDING status found" });
+    }
+
+    // Check if req.user and req.user.id are defined
+    if (!req.user || !req.user.id) {
+      console.error("User ID is missing in the request");
+      return res.status(400).json({ error: "User ID is missing in the request" });
+    }
+
+    // Track the event of viewing pending users if necessary
+    analytics.track({
+      userId: String(req.user.id), // Assumes req.user contains admin's user id
+      event: 'Admin Viewed Pending Users',
+      properties: {
+        viewedAt: new Date().toISOString(),
+        userCount: pendingUsers.rows.length,
+      }
+    });
+
+    res.status(200).json(pendingUsers.rows);
+  } catch (error) {
+    console.error("Error occurred while fetching pending users:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// API function to send account completion email
+const sendCompletionEmail = async (req, res) => {
+  const { userId } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID is required' });
+  }
+
+  try {
+    // Query the database to get user details by ID
+    const userQuery = await client.query('SELECT * FROM "users" WHERE id = $1', [userId]);
+
+    if (userQuery.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = userQuery.rows[0];
+
+    // Create the verification URL
+    const verificationUrl = `${process.env.BASE_URL_DEV}/signup?userId=${user.id}`;
+
+    // Send the email with the verification URL
+    await sendEmail({
+      email: user.email,
+      templateId: YOUR_TEMPLATE_ID, // Replace with your actual template ID
+      templateModel: {
+        verificationUrl: verificationUrl,
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Verification email sent successfully',
+    });
+  } catch (error) {
+    console.error('Error sending verification email:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // Forgot password
 const forgotPassword = [
   body('email').isEmail().withMessage('Invalid email address'),
@@ -413,6 +701,8 @@ const forgotPassword = [
           templateId: 36437115,
           templateModel: {
             resetUrl: resetUrl,
+            user_name:user.first_name,
+            company_name:"Mentiro"
           }
         })
 
@@ -582,7 +872,7 @@ const deleteUser = catchAsyncErrors(async (req, res) => {
 });
 
 module.exports = {
-  signup,
+  // signup,
   login,
   logout,
   getAllUsers,
@@ -592,4 +882,8 @@ module.exports = {
   getUserDetails,
   editUser,
   deleteUser,
+  initialSignup,
+  completeRegistration,
+  getPendingUsers,
+  sendCompletionEmail
 };

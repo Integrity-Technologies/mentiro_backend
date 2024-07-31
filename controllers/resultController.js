@@ -5,6 +5,7 @@ const {
   getResultById,
   updateResult
 } = require("../models/result");
+const {createAssessment_attemptsTable} = require("../models/assessment_attempts.js");
 const analytics = require('../segment/segmentConfig');
 const answerController = require("../controllers/answerController");
 const { client } = require("../db/index.js");
@@ -64,7 +65,7 @@ const validateAnswerInput = (resultId, questionId, option) => {
   }
 };
 
-// Submit answer to a question
+// Submit answer to a question (correct function to submit answers)
 const submitAnswer = catchAsyncErrors(async (req, res) => {
   const { resultId, question_id, option } = req.body;
   // await validateAnswerInput(res, resultId, question_id, option);
@@ -118,7 +119,7 @@ const submitAnswer = catchAsyncErrors(async (req, res) => {
   res.status(200).json({ message: "Answer submitted successfully" });
 });
 
-// Create a new result
+// Create a new result (correct function to create results)
 const createResult = catchAsyncErrors(async (req, res) => {
   await createResultsTable();
 
@@ -453,7 +454,6 @@ const getResultsByUser = catchAsyncErrors(async (req, res) => {
 
   res.status(200).json(resultsWithNames);
 });
-
 
 module.exports = {
   createResult,

@@ -14,6 +14,8 @@ const { createTestsTableQuery } = require("../models/test.js");
 const { createUsersTableQuery } = require("../models/user.js");
 const { createWorkArrangementsTableQuery } = require("../models/workArrangement.js");
 
+const {createAssessment_attemptsTableQuery} = require("../models/assessment_attempts.js");
+
 const initializeTables = async () => {
   try {
     const tableQueries = [
@@ -30,7 +32,8 @@ const initializeTables = async () => {
       createResultsTableQuery,
       createTestsTableQuery,
       createUsersTableQuery,
-      createWorkArrangementsTableQuery
+      createWorkArrangementsTableQuery,
+      createAssessment_attemptsTableQuery
     ];
 
     for (const query of tableQueries) {

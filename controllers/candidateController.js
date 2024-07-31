@@ -141,6 +141,7 @@ const createCandidate = [
           templateId: 36579511,
           templateModel: {
             assessmentLink: link,
+            candidate_name:candidate.email
           }
         });
         

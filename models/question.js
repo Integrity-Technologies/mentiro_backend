@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS questions (
     is_custom BOOLEAN DEFAULT FALSE,
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (created_by) REFERENCES "users"(id)
+    FOREIGN KEY (created_by) REFERENCES "users"(id),
+    question_time INTEGER DEFAULT 1
 );
 `;
 
@@ -36,7 +37,8 @@ const saveQuestion = async (questionData) => {
     categories,
     created_by,
     is_active,
-    is_custom
+    is_custom,
+    question_time
   } = questionData;
   try {
     
@@ -48,9 +50,10 @@ const saveQuestion = async (questionData) => {
         categories,
         created_by,
         is_active,
-        is_custom
+        is_custom,
+        question_time
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *;
     `;
     const values = [
@@ -60,7 +63,8 @@ const saveQuestion = async (questionData) => {
       categories,
       created_by,
       is_active ?? true,
-      is_custom ?? false
+      is_custom ?? false,
+      question_time
     ];
     const result = await client.query(insertQuery, values);
     console.log("Question data saved successfully");

@@ -18,7 +18,8 @@ const createUsersTableQuery = `
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         reset_token VARCHAR,
-        reset_token_expiry TIMESTAMP 
+        reset_token_expiry TIMESTAMP,
+        status VARCHAR 
     )
     `;
 
@@ -51,6 +52,7 @@ const saveUser = async (userData) => {
     permissions,
     is_active,
     is_employee,
+    status
   } = userData;
   try {
     // Check if a user with the same email already exists
@@ -78,9 +80,10 @@ const saveUser = async (userData) => {
         is_active,
         is_employee,
         reset_token,
-        reset_token_expiry
+        reset_token_expiry,
+        status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *;
     `;
     //  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -97,6 +100,7 @@ const saveUser = async (userData) => {
       is_employee ?? false,
       userData.reset_token || null, // Set to null if not provided
       userData.reset_token_expiry || null, // Set to null if not provided
+      status
     ];
     console.log("🚀 ~ saveUser ~ values:", values);
     const result = await client.query(insertQuery, values);

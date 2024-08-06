@@ -39,11 +39,11 @@ const completeRegistrationValidationRules = [
     .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')
     .matches(/[a-z]/).withMessage('Password must contain at least one lowercase letter')
     .matches(/[0-9]/).withMessage('Password must contain at least one number')
-    .matches(/[\W_]/).withMessage('Password must contain at least one special character'),
-    body('phone')
-    .optional()
-    .isNumeric().withMessage('Phone must be numeric')
-    .isLength({ min: 10, max: 15 }).withMessage('Phone must be between 10 and 15 characters')
+    .matches(/[\W_]/).withMessage('Password must contain at least one special character')
+    // body('phone')
+    // .optional()
+    // .isNumeric().withMessage('Phone must be numeric')
+    // .isLength({ min: 10, max: 15 }).withMessage('Phone must be between 10 and 15 characters')
 ];
  // user validation rule (For add user API)
 const userValidationRules = [
@@ -203,36 +203,109 @@ async function getCompanyNameByUserId(userId) {
 //   })
 // ];
 
-const initialSignup = [ 
+// const initialSignup = [ 
+//   ...initialSignupValidationRules,
+//   handleValidationErrors,
+//   catchAsyncErrors(async (req, res, next) => {
+//   const { email } = req.body;
+
+//   await createUserTable();
+
+//      // Check if a user with the same email already exists
+//     const existingUser = await client.query('SELECT * FROM "users" WHERE email = $1', [email]);
+//     if (existingUser.rows.length > 0) {
+//       return sendErrorResponse(res, 409, 'User with this email already exists');
+//     }
+
+//   try{
+//   const newUser = await saveUser({
+//     email,
+//     status: 'PENDING',
+//   });
+
+//   if (!newUser.id) {
+//     return sendErrorResponse(res, 400, 'Failed to create user');
+//   }
+
+//       // posthog.capture({
+//       //   distinctId: result.id,
+//       //   event: 'User Signed Up',
+//       //   properties: {
+//       //     email: user.email,
+//       //     name: user.name,
+//       //     signup_method: 'Email', 
+//       //   },
+//       // }); 
+
+//       // Identify the user in Segment
+//       analytics.identify({
+//         userId: String(newUser.id), 
+//         traits: {
+//           email: newUser.email,
+//         }
+//       });
+
+//       // Track the signup event in Segment
+//       analytics.track({
+//         userId: String(newUser.id), // Ensure userId is a string
+//         event: 'User initially Signed Up',
+//         properties: {
+//           email: newUser.email,
+//           signupMethod: 'Website',
+//           createdAt: new Date().toISOString(),
+//         }
+//       });
+
+//   res.status(201).json({
+//     success: true,
+//     message: 'User created with email only',
+//     userId: newUser.id,
+//   });
+//   }
+//   catch (error) {
+//           console.error("Error occurred:", error);
+//           res.status(500).json({ error: error.message });
+//         }
+// })]
+const initialSignup = [
   ...initialSignupValidationRules,
   handleValidationErrors,
   catchAsyncErrors(async (req, res, next) => {
-  const { email } = req.body;
+    const { email } = req.body;
 
-  await createUserTable();
+    await createUserTable();
 
-     // Check if a user with the same email already exists
+    // Check if a user with the same email already exists
     const existingUser = await client.query('SELECT * FROM "users" WHERE email = $1', [email]);
     if (existingUser.rows.length > 0) {
-      return sendErrorResponse(res, 409, 'User with this email already exists');
+      const user = existingUser.rows[0];
+      if (user.status === 'COMPLETED') {
+        return sendErrorResponse(res, 409, 'User with this email already exists');
+      } else if (user.status === 'PENDING') {
+        return res.status(200).json({
+          success: true,
+          message: 'User with this email is allowed to move further',
+          userId: user.id,
+        });
+      }
     }
 
-  try{
-  const newUser = await saveUser({
-    email,
-    status: 'PENDING',
-  });
+    try {
+      const newUser = await saveUser({
+        email,
+        status: 'PENDING',
+      });
 
-  if (!newUser.id) {
-    return sendErrorResponse(res, 400, 'Failed to create user');
-  }
+      if (!newUser.id) {
+        return sendErrorResponse(res, 400, 'Failed to create user');
+      }
 
       // posthog.capture({
-      //   distinctId: result.id,
+      //   distinctId: newUser.id,
       //   event: 'User Signed Up',
       //   properties: {
-      //     email: user.email,
-      //     name: user.name,
+      //     email: newUser.email,
+      //     name: newUser.name,
       //     signup_method: 'Email', 
       //   },
       // }); 
@@ -256,18 +329,17 @@ const initialSignup = [
         }
       });
 
-  res.status(201).json({
-    success: true,
-    message: 'User created with email only',
-    userId: newUser.id,
-  });
-  }
-  catch (error) {
-          console.error("Error occurred:", error);
-          res.status(500).json({ error: error.message });
-        }
-})]
-
+      res.status(201).json({
+        success: true,
+        message: 'User created with email only',
+        userId: newUser.id,
+      });
+    } catch (error) {
+      console.error("Error occurred:", error);
+      res.status(500).json({ error: error.message });
+    }
+  })
+];
 
 // Complete registration
 // const completeRegistration = [ 
@@ -335,9 +407,9 @@ const completeRegistration = [
     const user = userQuery.rows[0];
 
     // Check if the user registration is already completed
-    if (user.status !== 'PENDING') {
-      return sendErrorResponse(res, 400, 'User has already completed registration');
-    }
+    // if (user.status !== 'PENDING') {
+    //   return sendErrorResponse(res, 400, 'User has already completed registration');
+    // }
 
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
